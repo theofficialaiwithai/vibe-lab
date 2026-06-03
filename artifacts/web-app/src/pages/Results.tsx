@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   RadarChart,
   PolarGrid,
@@ -11,6 +11,7 @@ import Layout from "@/components/Layout";
 import { levelLabel, levelTagline } from "@/lib/data/scoring";
 import type { Result, CategoryScore, Level } from "@/lib/data/scoring";
 import type { CategoryId } from "@/lib/data/questions";
+import { getResult } from "@workspace/api-client-react";
 
 // ── Stack recommendations ──────────────────────────────────────────
 const STACKS: Record<Level, { name: string; tools: string; reason: string; firstStep: string; link: string }> = {
@@ -139,50 +140,39 @@ function CategoryRow({ cat }: { cat: CategoryScore }) {
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────
-export default function Results() {
-  const navigate = useNavigate();
-  const [result, setResult] = useState<Result | null>(null);
-  const [loaded, setLoaded] = useState(false);
+// ── UUID detection ────────────────────────────────────────────────
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-  useEffect(() => {
+// ── Share button ──────────────────────────────────────────────────
+function ShareButton() {
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
     try {
-      const raw = localStorage.getItem("vibelab:result");
-      if (raw) setResult(JSON.parse(raw) as Result);
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch {
-      // malformed JSON — leave result null
+      // clipboard not available
     }
-    setLoaded(true);
-  }, []);
-
-  // Not yet checked storage
-  if (!loaded) return null;
-
-  // Fallback: no data
-  if (!result) {
-    return (
-      <Layout>
-        <div
-          style={{
-            minHeight: "calc(100vh - 56px)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 24,
-            textAlign: "center",
-            padding: "40px 24px",
-          }}
-        >
-          <p style={{ color: "var(--foreground)", opacity: 0.6, fontSize: 18 }}>No result found.</p>
-          <Link to="/assessment" style={btnPrimary}>Take the Assessment →</Link>
-        </div>
-      </Layout>
-    );
   }
 
+  return (
+    <button
+      onClick={() => void handleCopy()}
+      style={{ ...btnOutline, cursor: "pointer" }}
+    >
+      {copied ? "Copied! ✓" : "Copy Share Link"}
+    </button>
+  );
+}
+
+// ── Results body (shared between local and remote) ────────────────
+function ResultsBody({ result, token }: { result: Result; token: string }) {
+  const navigate = useNavigate();
   const stack = STACKS[result.level as Level];
   const radarData = result.scores.map((s) => ({ subject: s.short, score: s.score, fullMark: 100 }));
+  const isShareable = UUID_RE.test(token);
 
   return (
     <Layout>
@@ -299,11 +289,14 @@ export default function Results() {
 
         {/* ── BLOCK 6: CTA Row ── */}
         <div style={{ textAlign: "center" }}>
-          <p style={{ fontSize: 12, color: "var(--foreground)", opacity: 0.4, fontFamily: "monospace", marginBottom: 20 }}>
-            Your results are saved locally in your browser.
-          </p>
+          {!isShareable && (
+            <p style={{ fontSize: 12, color: "var(--foreground)", opacity: 0.4, fontFamily: "monospace", marginBottom: 20 }}>
+              Your results are saved locally in your browser.
+            </p>
+          )}
           <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
             <Link to="/hub" style={btnPrimary}>Browse Your Hub →</Link>
+            {isShareable && <ShareButton />}
             <button
               onClick={() => navigate("/assessment")}
               style={{ ...btnOutline, cursor: "pointer" }}
@@ -315,5 +308,153 @@ export default function Results() {
 
       </div>
     </Layout>
+  );
+}
+
+// ── Spinner ───────────────────────────────────────────────────────
+function Spinner() {
+  return (
+    <Layout>
+      <div
+        style={{
+          minHeight: "calc(100vh - 56px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: "50%",
+            border: "3px solid var(--border)",
+            borderTopColor: "var(--primary)",
+            animation: "spin 0.8s linear infinite",
+          }}
+        />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    </Layout>
+  );
+}
+
+// ── Remote result loader ──────────────────────────────────────────
+function RemoteResult({ token }: { token: string }) {
+  const [result, setResult] = useState<Result | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getResult(token)
+      .then((data) => {
+        if (cancelled) return;
+        const r: Result = {
+          overall: data.overall_score,
+          level: data.level as Level,
+          scores: data.scores as CategoryScore[],
+          weakest: (data.scores as CategoryScore[])
+            .slice()
+            .sort((a, b) => a.score - b.score)
+            .slice(0, 2)
+            .map((s) => s.id),
+        };
+        setResult(r);
+      })
+      .catch(() => {
+        if (!cancelled) setNotFound(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [token]);
+
+  if (loading) return <Spinner />;
+
+  if (notFound || !result) {
+    return (
+      <Layout>
+        <div
+          style={{
+            minHeight: "calc(100vh - 56px)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 24,
+            textAlign: "center",
+            padding: "40px 24px",
+          }}
+        >
+          <p style={{ color: "var(--foreground)", opacity: 0.6, fontSize: 18 }}>Result not found.</p>
+          <Link to="/assessment" style={btnPrimary}>Take the Assessment →</Link>
+        </div>
+      </Layout>
+    );
+  }
+
+  return <ResultsBody result={result} token={token} />;
+}
+
+// ── Main page ─────────────────────────────────────────────────────
+export default function Results() {
+  const { token = "local" } = useParams<{ token: string }>();
+
+  // UUID token → fetch from API
+  if (UUID_RE.test(token)) {
+    return <RemoteResult token={token} />;
+  }
+
+  // "local" token → read from localStorage
+  return <LocalResult />;
+}
+
+function LocalResult() {
+  const navigate = useNavigate();
+  const [result, setResult] = useState<Result | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("vibelab:result");
+      if (raw) setResult(JSON.parse(raw) as Result);
+    } catch {
+      // malformed JSON — leave result null
+    }
+    setLoaded(true);
+  }, []);
+
+  if (!loaded) return null;
+
+  if (!result) {
+    return (
+      <Layout>
+        <div
+          style={{
+            minHeight: "calc(100vh - 56px)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 24,
+            textAlign: "center",
+            padding: "40px 24px",
+          }}
+        >
+          <p style={{ color: "var(--foreground)", opacity: 0.6, fontSize: 18 }}>No result found.</p>
+          <Link to="/assessment" style={btnPrimary}>Take the Assessment →</Link>
+        </div>
+      </Layout>
+    );
+  }
+
+  return (
+    <>
+      <ResultsBody result={result} token="local" />
+      {/* navigate used in ResultsBody via its own useNavigate — preserve the local navigate for the outer wrapper */}
+      <div style={{ display: "none" }} onClick={() => navigate("/assessment")} />
+    </>
   );
 }

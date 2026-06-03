@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: results
+    description: Assessment result operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,66 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /results:
+    post:
+      operationId: saveResult
+      tags: [results]
+      summary: Save an assessment result
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssessmentInput"
+      responses:
+        "200":
+          description: Result saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareTokenPayload"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /results/{token}:
+    get:
+      operationId: getResult
+      tags: [results]
+      summary: Get an assessment result by share token
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Result found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssessmentResultData"
+        "404":
+          description: Result not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +95,53 @@ components:
           type: string
       required:
         - status
-
+    AssessmentInput:
+      type: object
+      properties:
+        scores:
+          type: array
+          items:
+            type: object
+        overall_score:
+          type: integer
+        level:
+          type: string
+        user_id:
+          type: string
+          nullable: true
+      required:
+        - scores
+        - overall_score
+        - level
+    ShareTokenPayload:
+      type: object
+      properties:
+        share_token:
+          type: string
+      required:
+        - share_token
+    AssessmentResultData:
+      type: object
+      properties:
+        scores:
+          type: array
+          items:
+            type: object
+        overall_score:
+          type: integer
+        level:
+          type: string
+        share_token:
+          type: string
+      required:
+        - scores
+        - overall_score
+        - level
+        - share_token
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error

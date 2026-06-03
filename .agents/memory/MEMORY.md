@@ -1,0 +1,2 @@
+- [Clerk + React version conflict](clerk-react-version.md) — @clerk/themes 2.x conflicts with @clerk/react 6.x via @clerk/shared; drop @clerk/themes and use inline appearance vars.
+- [OpenAPI schema naming vs orval](orval-naming.md) — orval auto-derives zod schema names from operationId (e.g. saveResult → SaveResultResponse); component schema names must differ or TS2308 duplicate export fires.

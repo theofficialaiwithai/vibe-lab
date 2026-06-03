@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useUser } from "@clerk/react";
 import Layout from "@/components/Layout";
 import { QUESTIONS } from "@/lib/data/questions";
 import { scoreAnswers } from "@/lib/data/scoring";
 import type { Answers } from "@/lib/data/scoring";
+import { saveResult } from "@workspace/api-client-react";
 
 const CATEGORY_LABELS: Record<string, string> = {
   "ai-tools":   "AI Coding Tools",
@@ -32,22 +34,34 @@ const pillStyle: React.CSSProperties = {
 
 export default function Assessment() {
   const navigate = useNavigate();
+  const { user } = useUser();
   const [step, setStep] = useState<number>(-1);
   const [answers, setAnswers] = useState<Answers>({});
   const [submitting, setSubmitting] = useState(false);
 
-  function finish(finalAnswers: Answers) {
+  async function finish(finalAnswers: Answers) {
     setSubmitting(true);
     const result = scoreAnswers(finalAnswers);
     localStorage.setItem("vibelab:result", JSON.stringify(result));
-    navigate("/results/local");
+
+    try {
+      const { share_token } = await saveResult({
+        scores: result.scores,
+        overall_score: result.overall,
+        level: result.level,
+        user_id: user?.id ?? null,
+      });
+      navigate(`/results/${share_token}`);
+    } catch {
+      navigate("/results/local");
+    }
   }
 
   function handleAnswer(questionId: string, score: number) {
     const updated = { ...answers, [questionId]: score };
     setAnswers(updated);
     if (step === TOTAL - 1) {
-      finish(updated);
+      void finish(updated);
     } else {
       setStep(step + 1);
     }
