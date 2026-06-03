@@ -1,0 +1,99 @@
+Build the full resource hub in src/pages/Hub.tsx. Replace the placeholder entirely.
+
+Import at the top:
+- VIDEOS, COWORK_SKILLS, STACK from "../lib/data/resources"
+- levelLabel from "../lib/data/scoring"
+- ExternalLink icon from lucide-react
+
+──────────────────────────────
+STATE & DATA SETUP
+──────────────────────────────
+- On mount, read localStorage key "vibelab:result" and parse it. Extract result.level if it exists (may be undefined if user hasn't taken the assessment yet).
+- State variables:
+    activeTab: "all" | "videos" | "skills" | "stack" (default "all")
+    activeLevel: "all" | "beginner" | "intermediate" | "advanced" (default "all")
+
+──────────────────────────────
+PAGE HEADER
+──────────────────────────────
+- Heading: "Curated Hub" large bold white
+- Subtitle: "The signal amidst the noise. Zero-fluff tutorials, Cowork skills, and a vetted stack — filtered by your level."
+- If a result exists in localStorage, show a small personalization note below:
+    "Showing resources for your level: {levelLabel(result.level)}" in a pill badge, var(--primary) color
+    with a small "× reset" link that clears the activeLevel filter back to "all"
+
+──────────────────────────────
+FILTER BAR
+──────────────────────────────
+Two rows of filter pills:
+
+Row 1 — Type tabs (left-aligned):
+  All | Videos | Skills | Stack
+  Active pill: bg var(--primary), white text
+  Inactive pill: bg var(--surface), border var(--border), muted text
+
+Row 2 — Level filter (left-aligned, smaller pills):
+  All Levels | Beginner | Intermediate | Advanced
+  Same active/inactive style but smaller
+
+If the user has a result, default activeLevel to their result.level on first load (they can change it).
+
+──────────────────────────────
+CONTENT — THREE SECTIONS
+──────────────────────────────
+Show/hide each section based on activeTab:
+- activeTab "all" → show all three sections
+- activeTab "videos" → show only Videos section
+- activeTab "skills" → show only Skills section
+- activeTab "stack" → show only Stack section
+
+Filter each section's items by activeLevel (unless activeLevel is "all").
+
+──────────────────────────────
+SECTION A: VIDEO TUTORIALS
+──────────────────────────────
+Section heading: "📺 Video Tutorials" bold, with a count badge showing number of visible videos.
+
+Each video as a horizontal card (bg var(--surface), border var(--border), rounded-xl, padding 20px):
+- Left: title bold, description below in muted smaller text, meta tag (e.g. "YouTube · 4 hours") in monospace pill
+- Right: level badge (Beginner / Intermediate / Advanced), and a "Watch →" button that opens the URL in a new tab (use <a target="_blank" rel="noopener noreferrer">)
+- Category tags shown as small pills below the description
+
+──────────────────────────────
+SECTION B: COWORK SKILLS
+──────────────────────────────
+Section heading: "🛠️ Cowork Skills" bold, with count badge.
+Subtitle: "Installable agent skills for Claude Code and Cowork. Each one activates automatically when you describe what you need."
+
+Each skill as a card (bg var(--surface), border var(--border), rounded-xl, padding 20px):
+- Title bold, description in muted text, meta in small italic below
+- Level badge top-right
+- "View on GitHub →" button opening the URL in a new tab
+
+──────────────────────────────
+SECTION C: VIBE STACK
+──────────────────────────────
+Section heading: "⚡ Vibe Stack" bold, with count badge.
+
+Group the STACK tools by their "group" field. Show each group as a subsection:
+  Group label (e.g. "Deployment") in monospace uppercase muted text, then the tools in that group in a responsive grid (3 columns on desktop, 1 on mobile).
+
+Each tool card (bg var(--surface), border var(--border), rounded-xl, padding 20px, text-center):
+- Tool name bold, centered
+- Description in small muted text, centered
+- Level badge below
+- "Visit →" link at the bottom in var(--primary) color, opens in new tab
+
+──────────────────────────────
+EMPTY STATE
+──────────────────────────────
+If a section has no visible items after filtering, show:
+  "No resources match this filter." in muted centered text, with a "Clear filters" link that resets both activeTab and activeLevel.
+
+──────────────────────────────
+GENERAL
+──────────────────────────────
+- All sections separated by a horizontal rule (border-top var(--border))
+- Max-width 1100px centered
+- Sticky filter bar would be nice but not required — static is fine
+- No pagination needed — show all matching items
