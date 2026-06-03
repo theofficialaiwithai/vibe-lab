@@ -1,6 +1,4 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { QUESTIONS } from "@/lib/data/questions";
-console.log("Questions loaded:", QUESTIONS.length);
 import Home from "@/pages/Home";
 import Assessment from "@/pages/Assessment";
 import Results from "@/pages/Results";
