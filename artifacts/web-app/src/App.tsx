@@ -20,8 +20,27 @@ function stripBase(path: string): string {
     : path;
 }
 
+const clerkLocalization = {
+  signIn: {
+    start: {
+      title: "Sign in to Vibe Lab",
+      subtitle: "to continue to Vibe Lab",
+    },
+  },
+  signUp: {
+    start: {
+      title: "Create your Vibe Lab account",
+      subtitle: "to start your Vibe Quotient journey",
+    },
+  },
+};
+
 const clerkAppearance = {
   cssLayerName: "clerk",
+  layout: {
+    socialButtonsPlacement: "top" as const,
+    socialButtonsVariant: "blockButton" as const,
+  },
   options: {
     logoPlacement: "inside" as const,
     logoLinkUrl: basePath || "/",
@@ -118,6 +137,7 @@ function ClerkProviderWithRoutes() {
       publishableKey={clerkPubKey!}
       proxyUrl={clerkProxyUrl}
       appearance={clerkAppearance}
+      localization={clerkLocalization}
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}
       signInFallbackRedirectUrl={basePath || "/"}
