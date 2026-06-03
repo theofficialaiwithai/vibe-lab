@@ -7,6 +7,7 @@ const CATEGORY_CARDS = [
   { num: "03", title: "Auth & Data", desc: "Clerk, Supabase, Neon. RLS and real data." },
   { num: "04", title: "UX Design Sourcing", desc: "Mobbin, Dribbble, 21st.dev. An eye for what ships." },
   { num: "05", title: "Product Thinking", desc: "PRDs, validation, Ideabrowser. Build what people want." },
+  { num: "06", title: "Distribution & Launch", desc: "SEO, social, communities. Get your first 100 users." },
 ];
 
 const STACK_TOOLS = [
