@@ -1,0 +1,63 @@
+Build the full Vibe Lab landing page in src/pages/Home.tsx. Replace the placeholder content entirely.
+
+The page should have these sections in order:
+
+──────────────────────────────
+SECTION 1: HERO
+──────────────────────────────
+- Small badge at the top: a pill-shaped tag with a small pulsing dot, text "v1.0 — Now Booting" in monospace uppercase, background var(--primary) at 10% opacity, border var(--primary) at 20% opacity, text color var(--primary)
+- Main heading (very large, bold, tight line height):
+    Line 1: "CODE AT THE"  (white)
+    Line 2: "SPEED OF VIBE."  (color: var(--primary))
+- Subtitle: "Transition from syntax-obsessed to product-obsessed. Measure your AI-native development skills and unlock your personalized growth path." — muted color, max-width 600px, centered
+- Two buttons side by side:
+    1. "Start Skills Assessment" → links to /assessment — filled, background var(--primary), white text, bold
+    2. "Browse Resource Hub" → links to /hub — outlined, background var(--surface), border var(--border), white text, bold
+
+──────────────────────────────
+SECTION 2: THE VIBE QUOTIENT PREVIEW
+──────────────────────────────
+- A two-column grid (left column wider):
+  LEFT CARD (bg: var(--surface), border: var(--border), rounded-2xl, padding 32px):
+    - Small label: "Personalized Scoring" in monospace uppercase, color var(--primary)
+    - Heading: "The Vibe Quotient"
+    - Body: "A 5-minute diagnostic across the modern vibe-coding stack. We score you per skill, then build your hub around your weakest categories."
+    - Two progress bars at the bottom:
+        • "AI Tool Proficiency" — 88% — bar filled with var(--primary)
+        • "Product Thinking" — 72% — bar filled with var(--primary)
+      Each bar: label + percentage on one row (muted text), thin bar below
+  RIGHT SIDE: a 2x3 grid of small category cards (bg: var(--surface), border: var(--border), rounded-xl):
+    Card 1: "01" label, "AI Coding Tools", "Claude Code, Codex, Replit Agent — and how to orchestrate them."
+    Card 2: "02" label, "Deployment & Hosting", "Vercel, Cloudflare, Netlify. From local to live URL."
+    Card 3: "03" label, "Auth & Data", "Clerk, Supabase, Neon. RLS and real data."
+    Card 4: "04" label, "UX Design Sourcing", "Mobbin, Dribbble, 21st.dev. An eye for what ships."
+    Card 5: "05" label, "Product Thinking", "PRDs, validation, Ideabrowser. Build what people want."
+    Numbers in monospace, card title bold, description small and muted.
+
+──────────────────────────────
+SECTION 3: CURATED HUB PREVIEW
+──────────────────────────────
+- Section header left-aligned: "Curated Hub" (large, bold) with subtitle "The signal amidst the noise. Zero-fluff tutorials, Cowork skills, and a vetted stack — all filtered by your level."
+- "View All Resources →" link on the right of the header row, links to /hub, color var(--primary)
+- Three cards in a row (equal width, bg: var(--surface), border: var(--border), rounded-xl, padding 24px, min-height 200px):
+    Card 1: small label "Video Tutorials", heading "Hours of Claude Code masterclasses, distilled."
+    Card 2: small label "Cowork Skills", heading "Reusable agent skills for PRDs, MCP, automation, and more."
+    Card 3: small label "Vibe Stack", heading "The vetted tools: Vercel, Supabase, Clerk, Replit, Mobbin."
+  Labels in monospace muted text. Headings bold.
+
+──────────────────────────────
+SECTION 4: VIBE STACK GRID
+──────────────────────────────
+- Section header centered: "The Vibe Stack" (large, bold), subtitle "Verified tools for high-velocity building" (small, muted, monospace uppercase)
+- A 3-column responsive grid of tool name cards (bg: var(--surface), border: var(--border), rounded-xl, padding 20px, centered text):
+    Vercel, Supabase, Clerk, Neon, 21st.dev, Cloudflare, Mobbin, Dribbble, Ideabrowser
+- A "+ View All" button below the grid, centered, outlined style, links to /hub
+
+──────────────────────────────
+GENERAL REQUIREMENTS
+──────────────────────────────
+- All sections have generous vertical padding (80px+) and max-width 1200px centered
+- Dark background throughout (var(--background))
+- Use React Router Link for all internal links — no <a> tags for internal navigation
+- No dummy images — text and shapes only
+- Mobile responsive: single column on small screens
