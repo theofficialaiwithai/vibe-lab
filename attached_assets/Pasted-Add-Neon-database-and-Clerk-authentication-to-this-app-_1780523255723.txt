@@ -1,0 +1,58 @@
+Add Neon database and Clerk authentication to this app. Agent should provision both automatically — do not ask me to create external accounts or paste any API keys manually.
+
+──────────────────────────────
+PART 1 — NEON DATABASE
+──────────────────────────────
+Provision a Neon Postgres database for this project.
+
+Create this table:
+  CREATE TABLE IF NOT EXISTS assessment_results (
+    id SERIAL PRIMARY KEY,
+    user_id TEXT,
+    scores JSONB NOT NULL,
+    overall_score INTEGER NOT NULL,
+    level TEXT NOT NULL,
+    share_token UUID NOT NULL DEFAULT gen_random_uuid(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+Update the finish() function in src/pages/Assessment.tsx:
+- After calling scoreAnswers() and saving to localStorage, also insert the result to Neon
+- Insert: { user_id (Clerk user ID if signed in, null if anonymous), scores, overall_score, level }
+- On successful insert, get back the share_token and navigate to /results/{share_token}
+- On any error, fall back silently to /results/local — never show a database error to the user
+- Make finish() async
+
+Update src/pages/Results.tsx to handle two cases:
+
+  Case 1 — token === "local":
+    Read from localStorage "vibelab:result" as before — no changes
+
+  Case 2 — token is a UUID:
+    Query Neon: SELECT scores, overall_score, level, share_token FROM assessment_results WHERE share_token = $1
+    Show a loading state while fetching
+    If found: render results using that data
+    If not found: show "Result not found." with a link back to /assessment
+
+Add a "Copy Share Link" button on the results page — only visible when token is not "local":
+  - Copies window.location.href to clipboard on click
+  - Label changes to "Copied! ✓" for 2 seconds then reverts
+  - Outlined button style, same row as the other CTAs
+
+──────────────────────────────
+PART 2 — CLERK AUTH
+──────────────────────────────
+Provision Clerk for this project. Agent should handle all Clerk setup automatically.
+
+Set up Clerk so that:
+- The app is wrapped in ClerkProvider at the root level (src/main.tsx or src/App.tsx)
+- Authentication is entirely OPTIONAL — users can take the assessment and get results without signing in
+- The Nav (src/components/Nav.tsx) gets a sign-in area on the right side:
+    - If signed out: show a "Sign in" button that opens the Clerk sign-in modal
+    - If signed in: show the user's first name + a "Sign out" link
+    - Replace the current "Publish ▶" button placeholder with this auth area
+- No route is protected — all pages remain fully public
+- When a signed-in user completes the assessment, their Clerk user ID is saved to the user_id column in Neon
+
+Keep all existing page layouts, colors, and functionality exactly as they are.
+Do not add a separate login page — use Clerk's modal flow only.
