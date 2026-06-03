@@ -1,0 +1,170 @@
+Create a src/lib/data/ folder and add these three files with the exact content below.
+
+─────────────────────────────────────────
+FILE 1: src/lib/data/questions.ts
+─────────────────────────────────────────
+
+export type CategoryId = "ai-tools" | "deployment" | "auth-data" | "ux-design" | "product";
+
+export type Question = {
+  id: string;
+  category: CategoryId;
+  prompt: string;
+  options: { label: string; score: number }[];
+};
+
+export const QUESTIONS: Question[] = [
+  // AI Coding Tools
+  { id: "ai1", category: "ai-tools", prompt: "How comfortable are you with Claude Code, Codex, or a similar terminal-native AI coding agent?", options: [{ label: "Haven't used one yet", score: 0 }, { label: "Tried it on a small task", score: 1 }, { label: "Ship features with it weekly", score: 2 }, { label: "Run multi-agent / sub-agent setups", score: 3 }] },
+  { id: "ai2", category: "ai-tools", prompt: "MCP (Model Context Protocol) servers — what's your relationship?", options: [{ label: "Never heard of MCP", score: 0 }, { label: "Heard of it, never wired one up", score: 1 }, { label: "Use community MCP servers regularly", score: 2 }, { label: "Have written or extended my own", score: 3 }] },
+  { id: "ai3", category: "ai-tools", prompt: "When the agent goes off the rails, what do you usually do?", options: [{ label: "Start over with a new prompt", score: 0 }, { label: "Rewrite the request more carefully", score: 1 }, { label: "Reset context and reload a planning doc", score: 2 }, { label: "Edit context window + tools mid-run", score: 3 }] },
+  { id: "ai4", category: "ai-tools", prompt: "Do you use reusable prompt routines / skills / sub-agents?", options: [{ label: "I write each prompt from scratch", score: 0 }, { label: "I keep a notes file of good prompts", score: 1 }, { label: "I have a small library of reusable skills", score: 2 }, { label: "I compose skills + sub-agents into pipelines", score: 3 }] },
+
+  // Deployment
+  { id: "dep1", category: "deployment", prompt: "Have you deployed a web app to a real URL someone else can visit?", options: [{ label: "Not yet", score: 0 }, { label: "Once or twice via a guided wizard", score: 1 }, { label: "Yes, comfortably (Vercel/Netlify/Replit)", score: 2 }, { label: "Yes, including custom domains + envs", score: 3 }] },
+  { id: "dep2", category: "deployment", prompt: "Edge runtimes (Cloudflare Workers, Vercel Edge, etc.) — where are you?", options: [{ label: "Not sure what those are", score: 0 }, { label: "Heard of them", score: 1 }, { label: "Deployed something to the edge", score: 2 }, { label: "Design around edge constraints on purpose", score: 3 }] },
+  { id: "dep3", category: "deployment", prompt: "How do you manage environment variables / secrets across environments?", options: [{ label: "I don't yet", score: 0 }, { label: "I paste them into the dashboard manually", score: 1 }, { label: "Separate dev / preview / prod values", score: 2 }, { label: "Rotated, scoped, audited", score: 3 }] },
+
+  // Auth & Data
+  { id: "auth1", category: "auth-data", prompt: "Have you shipped real user authentication (signup, login, sessions)?", options: [{ label: "Not yet", score: 0 }, { label: "A demo / tutorial version", score: 1 }, { label: "Yes, with Clerk / Supabase / similar", score: 2 }, { label: "Yes, including OAuth + roles + magic links", score: 3 }] },
+  { id: "auth2", category: "auth-data", prompt: "Row-level security (RLS) or per-user data access — how comfortable?", options: [{ label: "What's RLS?", score: 0 }, { label: "I know it exists", score: 1 }, { label: "I write basic 'own rows only' policies", score: 2 }, { label: "I model role-based access end-to-end", score: 3 }] },
+  { id: "auth3", category: "auth-data", prompt: "Postgres / SQL schema design — where are you?", options: [{ label: "I avoid touching the schema", score: 0 }, { label: "I can add columns when prompted", score: 1 }, { label: "I design tables, indexes, foreign keys", score: 2 }, { label: "I think in migrations and constraints", score: 3 }] },
+  { id: "auth4", category: "auth-data", prompt: "Storing files (images, uploads) for real users?", options: [{ label: "Never done it", score: 0 }, { label: "Used a tutorial setup", score: 1 }, { label: "Shipped with signed URLs + access rules", score: 2 }, { label: "Designed for multi-tenant + retention", score: 3 }] },
+
+  // UX Design
+  { id: "ux1", category: "ux-design", prompt: "Where do you go for UI inspiration before building a screen?", options: [{ label: "I let the AI pick", score: 0 }, { label: "Google image search", score: 1 }, { label: "Dribbble / Mobbin / specific apps", score: 2 }, { label: "I keep my own reference library", score: 3 }] },
+  { id: "ux2", category: "ux-design", prompt: "Component libraries — what do you reach for?", options: [{ label: "Whatever the AI generates from scratch", score: 0 }, { label: "shadcn/ui defaults", score: 1 }, { label: "shadcn + 21st.dev + custom variants", score: 2 }, { label: "I maintain my own design system / tokens", score: 3 }] },
+  { id: "ux3", category: "ux-design", prompt: "Typography, spacing, color — how intentional are your choices?", options: [{ label: "I use whatever's default", score: 0 }, { label: "I pick a palette and one font", score: 1 }, { label: "I work from a system (scales, tokens)", score: 2 }, { label: "I design like a brand, not a screen", score: 3 }] },
+
+  // Product Thinking
+  { id: "p1", category: "product", prompt: "Before building, do you write a PRD or spec?", options: [{ label: "No, I just start", score: 0 }, { label: "A few bullet points", score: 1 }, { label: "A real PRD with users + scope", score: 2 }, { label: "PRD + edge cases + success metrics", score: 3 }] },
+  { id: "p2", category: "product", prompt: "How do you decide what to build next?", options: [{ label: "Whatever sounds fun", score: 0 }, { label: "Personal pain points", score: 1 }, { label: "Validated signals (Ideabrowser, X, niches)", score: 2 }, { label: "Distribution-first — I pick where I can win", score: 3 }] },
+  { id: "p3", category: "product", prompt: "When something is half-built, do you ship it?", options: [{ label: "I usually abandon it", score: 0 }, { label: "I ship to friends sometimes", score: 1 }, { label: "I ship publicly and iterate", score: 2 }, { label: "I ship a v0.1 the same week I start", score: 3 }] },
+];
+
+─────────────────────────────────────────
+FILE 2: src/lib/data/scoring.ts
+─────────────────────────────────────────
+
+import { QUESTIONS } from "./questions";
+import type { CategoryId } from "./questions";
+
+export type Level = "beginner" | "intermediate" | "advanced";
+export type Answers = Record<string, number>;
+
+export type CategoryScore = {
+  id: CategoryId;
+  label: string;
+  short: string;
+  score: number;
+};
+
+export type Result = {
+  scores: CategoryScore[];
+  overall: number;
+  level: Level;
+  weakest: CategoryId[];
+};
+
+const CATEGORY_META: Record<CategoryId, { label: string; short: string }> = {
+  "ai-tools":   { label: "AI Coding Tools",      short: "AI Tools"   },
+  "deployment": { label: "Deployment & Hosting",  short: "Deployment" },
+  "auth-data":  { label: "Auth & Data",           short: "Auth/Data"  },
+  "ux-design":  { label: "UX Design Sourcing",    short: "UX Design"  },
+  "product":    { label: "Product Thinking",      short: "Product"    },
+};
+
+const CATEGORY_IDS: CategoryId[] = ["ai-tools", "deployment", "auth-data", "ux-design", "product"];
+
+export function scoreAnswers(answers: Answers): Result {
+  const scores: CategoryScore[] = CATEGORY_IDS.map((id) => {
+    const qs = QUESTIONS.filter((q) => q.category === id);
+    const max = qs.length * 3;
+    const got = qs.reduce((sum, q) => sum + (answers[q.id] ?? 0), 0);
+    const score = max === 0 ? 0 : Math.round((got / max) * 100);
+    return { id, score, ...CATEGORY_META[id] };
+  });
+  const overall = Math.round(scores.reduce((s, c) => s + c.score, 0) / scores.length);
+  const level: Level = overall < 40 ? "beginner" : overall < 75 ? "intermediate" : "advanced";
+  const weakest = [...scores].sort((a, b) => a.score - b.score).slice(0, 2).map((s) => s.id);
+  return { scores, overall, level, weakest };
+}
+
+export function levelTagline(level: Level): string {
+  if (level === "beginner") return "You're at the start of the curve. Pick a stack and ship your first thing.";
+  if (level === "intermediate") return "You can build. Now sharpen your tools and tighten the loop.";
+  return "You're operating like a product engineer. Time to compound — automate your own workflow.";
+}
+
+export function levelLabel(level: Level): string {
+  if (level === "beginner") return "Vibe Starter";
+  if (level === "intermediate") return "Vibe Builder";
+  return "Vibe Architect";
+}
+
+─────────────────────────────────────────
+FILE 3: src/lib/data/resources.ts
+─────────────────────────────────────────
+
+import type { CategoryId, Level } from "./scoring";
+
+export type Resource = {
+  id: string;
+  title: string;
+  description: string;
+  url: string;
+  type: "video" | "skill" | "tool";
+  level: Level;
+  categories: CategoryId[];
+  meta?: string;
+};
+
+const REPO = "https://github.com/theofficialaiwithai/cowork-skills/tree/main/skills";
+
+export const COWORK_SKILLS: Resource[] = [
+  { id: "cs-automation-architect", title: "Automation Architect", description: "Maps a fuzzy automation idea into concrete tools, triggers, and steps. Thinks in workflows, not features.", url: `${REPO}/automation-architect`, type: "skill", level: "intermediate", categories: ["ai-tools", "product"], meta: "Use when scoping a new automation before writing any code." },
+  { id: "cs-code-build-copilot", title: "Code Build Copilot", description: "Takes a spec or PRD and plans the build top-down: stack, files, sequence of edits, tests.", url: `${REPO}/code-build-copilot`, type: "skill", level: "beginner", categories: ["ai-tools", "product"], meta: "Drop in at the start of any project so Claude builds from a plan." },
+  { id: "cs-mcp-assistant", title: "MCP Assistant", description: "Helps you reason about Model Context Protocol servers — picking the right ones, wiring them into Claude Code, and debugging tool calls.", url: `${REPO}/mcp-assistant`, type: "skill", level: "advanced", categories: ["ai-tools"], meta: "Use when extending Claude Code with custom MCP servers." },
+  { id: "cs-openclaw-assistant", title: "OpenClaw Assistant", description: "Orchestrates the OpenClaw multi-agent setup — coordinating sub-agents, managing context, and supervising long-running jobs.", url: `${REPO}/openclaw-assistant`, type: "skill", level: "advanced", categories: ["ai-tools"], meta: "Use when running OpenClaw and need a supervisor agent." },
+  { id: "cs-prd-assistant", title: "PRD Assistant", description: "Turns a rough product idea into a complete PRD: problem, users, scope, success criteria, edge cases, and open questions.", url: `${REPO}/prd-assistant`, type: "skill", level: "beginner", categories: ["product"], meta: "Run this first on every new idea." },
+  { id: "cs-replit-copilot", title: "Replit Copilot", description: "A Replit-tuned coding skill that knows the Replit Agent's quirks, deployment model, and prompt patterns that actually ship.", url: `${REPO}/replit-copilot`, type: "skill", level: "intermediate", categories: ["ai-tools", "deployment"], meta: "Use when prototyping or deploying inside Replit." },
+  { id: "cs-routines-creator", title: "Routines Creator", description: "Designs reusable Claude routines — scoped prompt + tool combinations you can fire off as one command.", url: `${REPO}/routines-creator`, type: "skill", level: "advanced", categories: ["ai-tools", "product"], meta: "Use once you've noticed yourself repeating the same multi-step prompt." },
+];
+
+export const VIDEOS: Resource[] = [
+  { id: "yt-claude-cowork", title: "Claude Cowork", description: "Intro walkthrough of Cowork-style prompting with Claude — how to set up agents that collaborate.", url: "https://youtu.be/SNo_recKZyY", type: "video", level: "beginner", categories: ["ai-tools"], meta: "YouTube · short" },
+  { id: "yt-claude-code-4hr", title: "Claude Code — 4 Hour Course", description: "Comprehensive Claude Code course covering setup, tool use, MCP, planning workflows, and shipping a real project.", url: "https://youtu.be/QoQBzR1NIqI", type: "video", level: "beginner", categories: ["ai-tools", "deployment", "auth-data"], meta: "YouTube · 4 hours" },
+  { id: "yt-advanced-claude-code", title: "Advanced Claude Code", description: "Deeper patterns: sub-agents, context engineering, custom routines, and Claude Code workflows for non-trivial codebases.", url: "https://youtu.be/UPtmKh1vMN8", type: "video", level: "advanced", categories: ["ai-tools", "product"], meta: "YouTube · long" },
+  { id: "yt-vercel-netlify", title: "Deploy Vibe Coding Projects for Free — Vercel & Netlify", description: "Take your AI-generated projects from GitHub and deploy them live using Vercel or Netlify for free.", url: "https://www.youtube.com/watch?v=85JVKjW-uG0", type: "video", level: "beginner", categories: ["deployment"], meta: "YouTube · beginner" },
+  { id: "yt-netlify-deploy", title: "How to Deploy a Website on Netlify (Free & Fast)", description: "Beginner-friendly walkthrough for deploying web projects on Netlify with a live demo.", url: "https://www.youtube.com/watch?v=FluBig_0Pls", type: "video", level: "beginner", categories: ["deployment"], meta: "YouTube · beginner" },
+  { id: "yt-cloudflare-pages", title: "Cloudflare Pages Free Hosting", description: "Step-by-step guide to hosting your site on Cloudflare Pages for free with a custom domain.", url: "https://www.youtube.com/watch?v=PDB9Ka7LMsU", type: "video", level: "beginner", categories: ["deployment"], meta: "YouTube · beginner" },
+  { id: "yt-clerk-auth", title: "Easy Authentication with Clerk and Next.js", description: "Step-by-step tutorial for adding login and user authentication using Clerk.", url: "https://www.youtube.com/watch?v=5RRnuuPCfQU", type: "video", level: "beginner", categories: ["auth-data"], meta: "YouTube · beginner" },
+  { id: "yt-neon-postgres", title: "Getting Started with Neon in 10 Minutes", description: "Quick-start guide to creating and connecting a Neon serverless Postgres database.", url: "https://www.youtube.com/watch?v=OX2YykRyOE4", type: "video", level: "intermediate", categories: ["auth-data"], meta: "YouTube · 10 min" },
+  { id: "yt-supabase-full", title: "Supabase Full Course 2025", description: "Covers setting up Supabase, building tables, auth, and row-level security in under 2 hours.", url: "https://www.youtube.com/watch?v=kyphLGnSz6Q", type: "video", level: "beginner", categories: ["auth-data"], meta: "YouTube · 1.5 hours" },
+  { id: "yt-codex-vibe", title: "The Right Way to Vibe Code with OpenAI Codex", description: "Beginner tutorial showing how to build a complete project step by step using Codex.", url: "https://www.youtube.com/watch?v=V2N3amlXhOo", type: "video", level: "beginner", categories: ["ai-tools"], meta: "YouTube · beginner" },
+  { id: "yt-replit-agent", title: "How to Build Apps with Replit AI Agent", description: "Step-by-step course covering how to set up Replit and build full apps using its AI agent.", url: "https://www.youtube.com/watch?v=DaXQ5L7r7Lg", type: "video", level: "beginner", categories: ["ai-tools", "deployment"], meta: "YouTube · beginner" },
+];
+
+type StackGroup = "Deployment" | "Authentication" | "Database" | "UX Design" | "Vibe Coding" | "Product Ideas";
+
+export const STACK: (Resource & { group: StackGroup })[] = [
+  { id: "st-vercel", title: "Vercel", description: "Zero-config deploys for Next.js & friends. The default for most vibe-coded apps.", url: "https://vercel.com", type: "tool", level: "beginner", categories: ["deployment"], group: "Deployment" },
+  { id: "st-cloudflare", title: "Cloudflare", description: "Workers + Pages for edge-first apps. Fast, cheap, global.", url: "https://cloudflare.com", type: "tool", level: "intermediate", categories: ["deployment"], group: "Deployment" },
+  { id: "st-netlify", title: "Netlify", description: "Friendly static + serverless host. Lowest friction for landing pages and small apps.", url: "https://netlify.com", type: "tool", level: "beginner", categories: ["deployment"], group: "Deployment" },
+  { id: "st-clerk", title: "Clerk", description: "Drop-in auth with prebuilt UI, social logins, and orgs/teams. Easiest path to real auth.", url: "https://clerk.com", type: "tool", level: "beginner", categories: ["auth-data"], group: "Authentication" },
+  { id: "st-neon", title: "Neon", description: "Serverless Postgres with branching. Great for prototyping schema changes without fear.", url: "https://neon.tech", type: "tool", level: "intermediate", categories: ["auth-data"], group: "Database" },
+  { id: "st-supabase", title: "Supabase", description: "Postgres + auth + storage + edge functions in one. The default backend for vibe coding.", url: "https://supabase.com", type: "tool", level: "beginner", categories: ["auth-data"], group: "Database" },
+  { id: "st-21st", title: "21st.dev", description: "Searchable library of pre-built, production-grade React + Tailwind components.", url: "https://21st.dev", type: "tool", level: "intermediate", categories: ["ux-design"], group: "UX Design" },
+  { id: "st-dribbble", title: "Dribbble", description: "Visual inspiration for layouts, colors, and motion. Source mood boards fast.", url: "https://dribbble.com", type: "tool", level: "beginner", categories: ["ux-design"], group: "UX Design" },
+  { id: "st-mobbin", title: "Mobbin", description: "Real screenshots from real apps. The reference library for shipped UX patterns.", url: "https://mobbin.com", type: "tool", level: "intermediate", categories: ["ux-design"], group: "UX Design" },
+  { id: "st-claude-code", title: "Claude Code", description: "Terminal-native agent from Anthropic. The sharpest tool for serious building.", url: "https://www.anthropic.com/claude-code", type: "tool", level: "intermediate", categories: ["ai-tools"], group: "Vibe Coding" },
+  { id: "st-codex", title: "Codex", description: "OpenAI's coding agent. Strong at large refactors and long-context work.", url: "https://openai.com/codex", type: "tool", level: "intermediate", categories: ["ai-tools"], group: "Vibe Coding" },
+  { id: "st-replit", title: "Replit", description: "Browser-based agent + hosting. Lowest friction from idea to live URL.", url: "https://replit.com", type: "tool", level: "beginner", categories: ["ai-tools", "deployment"], group: "Vibe Coding" },
+  { id: "st-ideabrowser", title: "Ideabrowser", description: "Curated, validated startup ideas with market signal. Fuel for what to build next.", url: "https://ideabrowser.com", type: "tool", level: "beginner", categories: ["product"], group: "Product Ideas" },
+];
+
+export const ALL_RESOURCES: Resource[] = [...COWORK_SKILLS, ...VIDEOS, ...STACK];
+
+─────────────────────────────────────────
+After creating all three files, add this temporary check to App.tsx — import QUESTIONS from "./lib/data/questions" and console.log("Questions loaded:", QUESTIONS.length) — then confirm in the console that it prints 18.
+─────────────────────────────────────────

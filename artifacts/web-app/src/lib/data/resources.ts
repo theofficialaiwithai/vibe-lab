@@ -1,0 +1,59 @@
+import type { CategoryId } from "./questions";
+import type { Level } from "./scoring";
+
+export type Resource = {
+  id: string;
+  title: string;
+  description: string;
+  url: string;
+  type: "video" | "skill" | "tool";
+  level: Level;
+  categories: CategoryId[];
+  meta?: string;
+};
+
+const REPO = "https://github.com/theofficialaiwithai/cowork-skills/tree/main/skills";
+
+export const COWORK_SKILLS: Resource[] = [
+  { id: "cs-automation-architect", title: "Automation Architect", description: "Maps a fuzzy automation idea into concrete tools, triggers, and steps. Thinks in workflows, not features.", url: `${REPO}/automation-architect`, type: "skill", level: "intermediate", categories: ["ai-tools", "product"], meta: "Use when scoping a new automation before writing any code." },
+  { id: "cs-code-build-copilot", title: "Code Build Copilot", description: "Takes a spec or PRD and plans the build top-down: stack, files, sequence of edits, tests.", url: `${REPO}/code-build-copilot`, type: "skill", level: "beginner", categories: ["ai-tools", "product"], meta: "Drop in at the start of any project so Claude builds from a plan." },
+  { id: "cs-mcp-assistant", title: "MCP Assistant", description: "Helps you reason about Model Context Protocol servers — picking the right ones, wiring them into Claude Code, and debugging tool calls.", url: `${REPO}/mcp-assistant`, type: "skill", level: "advanced", categories: ["ai-tools"], meta: "Use when extending Claude Code with custom MCP servers." },
+  { id: "cs-openclaw-assistant", title: "OpenClaw Assistant", description: "Orchestrates the OpenClaw multi-agent setup — coordinating sub-agents, managing context, and supervising long-running jobs.", url: `${REPO}/openclaw-assistant`, type: "skill", level: "advanced", categories: ["ai-tools"], meta: "Use when running OpenClaw and need a supervisor agent." },
+  { id: "cs-prd-assistant", title: "PRD Assistant", description: "Turns a rough product idea into a complete PRD: problem, users, scope, success criteria, edge cases, and open questions.", url: `${REPO}/prd-assistant`, type: "skill", level: "beginner", categories: ["product"], meta: "Run this first on every new idea." },
+  { id: "cs-replit-copilot", title: "Replit Copilot", description: "A Replit-tuned coding skill that knows the Replit Agent's quirks, deployment model, and prompt patterns that actually ship.", url: `${REPO}/replit-copilot`, type: "skill", level: "intermediate", categories: ["ai-tools", "deployment"], meta: "Use when prototyping or deploying inside Replit." },
+  { id: "cs-routines-creator", title: "Routines Creator", description: "Designs reusable Claude routines — scoped prompt + tool combinations you can fire off as one command.", url: `${REPO}/routines-creator`, type: "skill", level: "advanced", categories: ["ai-tools", "product"], meta: "Use once you've noticed yourself repeating the same multi-step prompt." },
+];
+
+export const VIDEOS: Resource[] = [
+  { id: "yt-claude-cowork", title: "Claude Cowork", description: "Intro walkthrough of Cowork-style prompting with Claude — how to set up agents that collaborate.", url: "https://youtu.be/SNo_recKZyY", type: "video", level: "beginner", categories: ["ai-tools"], meta: "YouTube · short" },
+  { id: "yt-claude-code-4hr", title: "Claude Code — 4 Hour Course", description: "Comprehensive Claude Code course covering setup, tool use, MCP, planning workflows, and shipping a real project.", url: "https://youtu.be/QoQBzR1NIqI", type: "video", level: "beginner", categories: ["ai-tools", "deployment", "auth-data"], meta: "YouTube · 4 hours" },
+  { id: "yt-advanced-claude-code", title: "Advanced Claude Code", description: "Deeper patterns: sub-agents, context engineering, custom routines, and Claude Code workflows for non-trivial codebases.", url: "https://youtu.be/UPtmKh1vMN8", type: "video", level: "advanced", categories: ["ai-tools", "product"], meta: "YouTube · long" },
+  { id: "yt-vercel-netlify", title: "Deploy Vibe Coding Projects for Free — Vercel & Netlify", description: "Take your AI-generated projects from GitHub and deploy them live using Vercel or Netlify for free.", url: "https://www.youtube.com/watch?v=85JVKjW-uG0", type: "video", level: "beginner", categories: ["deployment"], meta: "YouTube · beginner" },
+  { id: "yt-netlify-deploy", title: "How to Deploy a Website on Netlify (Free & Fast)", description: "Beginner-friendly walkthrough for deploying web projects on Netlify with a live demo.", url: "https://www.youtube.com/watch?v=FluBig_0Pls", type: "video", level: "beginner", categories: ["deployment"], meta: "YouTube · beginner" },
+  { id: "yt-cloudflare-pages", title: "Cloudflare Pages Free Hosting", description: "Step-by-step guide to hosting your site on Cloudflare Pages for free with a custom domain.", url: "https://www.youtube.com/watch?v=PDB9Ka7LMsU", type: "video", level: "beginner", categories: ["deployment"], meta: "YouTube · beginner" },
+  { id: "yt-clerk-auth", title: "Easy Authentication with Clerk and Next.js", description: "Step-by-step tutorial for adding login and user authentication using Clerk.", url: "https://www.youtube.com/watch?v=5RRnuuPCfQU", type: "video", level: "beginner", categories: ["auth-data"], meta: "YouTube · beginner" },
+  { id: "yt-neon-postgres", title: "Getting Started with Neon in 10 Minutes", description: "Quick-start guide to creating and connecting a Neon serverless Postgres database.", url: "https://www.youtube.com/watch?v=OX2YykRyOE4", type: "video", level: "intermediate", categories: ["auth-data"], meta: "YouTube · 10 min" },
+  { id: "yt-supabase-full", title: "Supabase Full Course 2025", description: "Covers setting up Supabase, building tables, auth, and row-level security in under 2 hours.", url: "https://www.youtube.com/watch?v=kyphLGnSz6Q", type: "video", level: "beginner", categories: ["auth-data"], meta: "YouTube · 1.5 hours" },
+  { id: "yt-codex-vibe", title: "The Right Way to Vibe Code with OpenAI Codex", description: "Beginner tutorial showing how to build a complete project step by step using Codex.", url: "https://www.youtube.com/watch?v=V2N3amlXhOo", type: "video", level: "beginner", categories: ["ai-tools"], meta: "YouTube · beginner" },
+  { id: "yt-replit-agent", title: "How to Build Apps with Replit AI Agent", description: "Step-by-step course covering how to set up Replit and build full apps using its AI agent.", url: "https://www.youtube.com/watch?v=DaXQ5L7r7Lg", type: "video", level: "beginner", categories: ["ai-tools", "deployment"], meta: "YouTube · beginner" },
+];
+
+type StackGroup = "Deployment" | "Authentication" | "Database" | "UX Design" | "Vibe Coding" | "Product Ideas";
+
+export const STACK: (Resource & { group: StackGroup })[] = [
+  { id: "st-vercel", title: "Vercel", description: "Zero-config deploys for Next.js & friends. The default for most vibe-coded apps.", url: "https://vercel.com", type: "tool", level: "beginner", categories: ["deployment"], group: "Deployment" },
+  { id: "st-cloudflare", title: "Cloudflare", description: "Workers + Pages for edge-first apps. Fast, cheap, global.", url: "https://cloudflare.com", type: "tool", level: "intermediate", categories: ["deployment"], group: "Deployment" },
+  { id: "st-netlify", title: "Netlify", description: "Friendly static + serverless host. Lowest friction for landing pages and small apps.", url: "https://netlify.com", type: "tool", level: "beginner", categories: ["deployment"], group: "Deployment" },
+  { id: "st-clerk", title: "Clerk", description: "Drop-in auth with prebuilt UI, social logins, and orgs/teams. Easiest path to real auth.", url: "https://clerk.com", type: "tool", level: "beginner", categories: ["auth-data"], group: "Authentication" },
+  { id: "st-neon", title: "Neon", description: "Serverless Postgres with branching. Great for prototyping schema changes without fear.", url: "https://neon.tech", type: "tool", level: "intermediate", categories: ["auth-data"], group: "Database" },
+  { id: "st-supabase", title: "Supabase", description: "Postgres + auth + storage + edge functions in one. The default backend for vibe coding.", url: "https://supabase.com", type: "tool", level: "beginner", categories: ["auth-data"], group: "Database" },
+  { id: "st-21st", title: "21st.dev", description: "Searchable library of pre-built, production-grade React + Tailwind components.", url: "https://21st.dev", type: "tool", level: "intermediate", categories: ["ux-design"], group: "UX Design" },
+  { id: "st-dribbble", title: "Dribbble", description: "Visual inspiration for layouts, colors, and motion. Source mood boards fast.", url: "https://dribbble.com", type: "tool", level: "beginner", categories: ["ux-design"], group: "UX Design" },
+  { id: "st-mobbin", title: "Mobbin", description: "Real screenshots from real apps. The reference library for shipped UX patterns.", url: "https://mobbin.com", type: "tool", level: "intermediate", categories: ["ux-design"], group: "UX Design" },
+  { id: "st-claude-code", title: "Claude Code", description: "Terminal-native agent from Anthropic. The sharpest tool for serious building.", url: "https://www.anthropic.com/claude-code", type: "tool", level: "intermediate", categories: ["ai-tools"], group: "Vibe Coding" },
+  { id: "st-codex", title: "Codex", description: "OpenAI's coding agent. Strong at large refactors and long-context work.", url: "https://openai.com/codex", type: "tool", level: "intermediate", categories: ["ai-tools"], group: "Vibe Coding" },
+  { id: "st-replit", title: "Replit", description: "Browser-based agent + hosting. Lowest friction from idea to live URL.", url: "https://replit.com", type: "tool", level: "beginner", categories: ["ai-tools", "deployment"], group: "Vibe Coding" },
+  { id: "st-ideabrowser", title: "Ideabrowser", description: "Curated, validated startup ideas with market signal. Fuel for what to build next.", url: "https://ideabrowser.com", type: "tool", level: "beginner", categories: ["product"], group: "Product Ideas" },
+];
+
+export const ALL_RESOURCES: Resource[] = [...COWORK_SKILLS, ...VIDEOS, ...STACK];
