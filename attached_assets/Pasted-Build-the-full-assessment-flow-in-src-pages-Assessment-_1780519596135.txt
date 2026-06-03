@@ -1,0 +1,68 @@
+Build the full assessment flow in src/pages/Assessment.tsx. Replace the placeholder entirely.
+
+Import QUESTIONS from "../lib/data/questions" and scoreAnswers, levelLabel from "../lib/data/scoring".
+
+The flow has three screens controlled by a step state variable (start at -1):
+
+──────────────────────────────
+SCREEN 1: INTRO  (step === -1)
+──────────────────────────────
+- Centered vertically and horizontally, full screen height minus nav
+- Small badge: "5 min · 17 questions · 5 skills" in monospace pill, same style as the hero badge (primary color, subtle bg)
+- Large heading: "Let's measure your" on line 1, "Vibe Quotient." on line 2 in var(--primary)
+- Subtitle: "No grades. No judgment. Just an honest read on where you are across the modern vibe-coding stack — so your hub fits you."
+- One button: "Begin →" — filled, var(--primary) background, white text, bold, large padding
+- On click: set step to 0
+
+──────────────────────────────
+SCREEN 2: QUESTION  (step 0 to 16)
+──────────────────────────────
+State needed:
+- step: number (current question index, 0-based)
+- answers: Record<string, number> (questionId → score selected)
+
+At the top of the question screen:
+- Progress bar: thin bar full width, filled portion = step/17 * 100%, color var(--primary), background var(--border)
+- Below the bar: "Question {step + 1} of 17" right-aligned in small muted monospace text
+
+Category label (the current question's category, formatted nicely):
+- Map category IDs to display names:
+    "ai-tools" → "AI Coding Tools"
+    "deployment" → "Deployment & Hosting"
+    "auth-data" → "Auth & Data"
+    "ux-design" → "UX Design Sourcing"
+    "product" → "Product Thinking"
+- Show as a small pill tag above the question, color var(--primary), same pill style as before
+
+Question prompt:
+- Large text (1.5rem+), bold, max-width 640px, centered on screen
+- This is QUESTIONS[step].prompt
+
+Answer options:
+- Four cards stacked vertically, max-width 560px, centered
+- Each card: bg var(--surface), border var(--border), rounded-xl, padding 16px 20px, cursor pointer
+- On hover: border color shifts to var(--primary) at 50% opacity
+- On click: record the answer (answers[question.id] = option.score), then:
+    - If this is the last question (step === 16): call finish(updatedAnswers)
+    - Otherwise: set step to step + 1
+- Show the option label text, left-aligned, regular weight
+
+finish() function:
+- Call scoreAnswers(answers) to get the result
+- Store the result in localStorage with key "vibelab:result" as JSON
+- Navigate to /results/local using React Router's useNavigate()
+
+──────────────────────────────
+SCREEN 3: SUBMITTING  (while finish() is running)
+──────────────────────────────
+- Show a centered message: "Calculating your Vibe Quotient..." with a simple animated spinner or pulsing dot
+- This appears briefly between the last answer and the redirect
+
+──────────────────────────────
+GENERAL REQUIREMENTS
+──────────────────────────────
+- No back button needed for now
+- No skip option
+- Smooth feel: each question replaces the previous instantly on answer click (no animation required, just instant swap)
+- Max-width 700px for the question area, centered
+- All three screens share the same Layout wrapper (Nav + Footer)
