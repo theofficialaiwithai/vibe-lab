@@ -325,9 +325,10 @@ export default function Home() {
           <h2 style={{ fontSize: 36, fontWeight: 800, color: "#ffffff", marginBottom: 48 }}>The Vibe Stack</h2>
 
           <div
+            className="stack-grid"
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
               gap: 14,
               marginBottom: 40,
             }}
@@ -368,6 +369,16 @@ export default function Home() {
         @keyframes pulse {
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.4; transform: scale(0.85); }
+        }
+        @media (max-width: 768px) {
+          .stack-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .stack-grid {
+            grid-template-columns: 1fr !important;
+          }
         }
       `}</style>
     </Layout>
