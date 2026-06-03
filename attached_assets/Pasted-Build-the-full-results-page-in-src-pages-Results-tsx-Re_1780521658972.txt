@@ -1,0 +1,86 @@
+Build the full results page in src/pages/Results.tsx. Replace the placeholder entirely.
+
+Import these at the top:
+- useNavigate from react-router-dom
+- RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer from recharts
+- levelLabel, levelTagline from "../lib/data/scoring"
+
+──────────────────────────────
+DATA LOADING
+──────────────────────────────
+On mount, read from localStorage key "vibelab:result" and JSON.parse it into a result object with this shape:
+  { scores: [{id, label, short, score}], overall: number, level: string, weakest: string[] }
+
+If nothing is found in localStorage, show a centered message:
+  "No result found." with a button "Take the Assessment →" that links to /assessment.
+
+──────────────────────────────
+PAGE LAYOUT (once result loads)
+──────────────────────────────
+Max-width 800px, centered, generous padding. All inside the Layout wrapper.
+
+BLOCK 1 — Header
+- Small badge: the level tier name returned by levelLabel(result.level), styled as a pill with var(--primary) color
+- Large heading: "Your Vibe Quotient" bold, white
+- Overall score displayed large: "{result.overall}%" in a very large font (4rem+), color var(--primary), bold
+- Subtitle: the tagline from levelTagline(result.level), muted color
+
+BLOCK 2 — Radar Chart
+- Use recharts RadarChart, centered, height 320px
+- Data: result.scores.map(s => ({ subject: s.short, score: s.score, fullMark: 100 }))
+- PolarGrid stroke: var(--border)
+- PolarAngleAxis tick fill: var(--foreground), fontSize 13
+- Radar: stroke var(--primary), fill var(--primary), fillOpacity 0.15
+- Wrap in ResponsiveContainer width="100%" height={320}
+
+BLOCK 3 — Category Scores
+- A list of all 5 categories, each showing:
+  - Category label (e.g. "AI Coding Tools")
+  - Score percentage on the right (e.g. "72%"), colored:
+      ≥ 70% → var(--success) (green)
+      40–69% → var(--primary) (indigo)
+      < 40% → #f97316 (orange)
+  - A thin progress bar below, same color scheme, filled to score %
+- Background: var(--surface), border: var(--border), rounded-xl, padding 24px
+
+BLOCK 4 — Recommended Stack
+- Heading: "Your Recommended Stack" bold
+- Show the stack based on result.level:
+    "beginner" →
+      Stack name: "Starter Stack"
+      Tools: Replit
+      Reason: "No setup required — build and deploy in one place. Perfect for your first shipped project."
+      First step: "Watch: How to Build Apps with Replit AI Agent"
+      Link: https://www.youtube.com/watch?v=DaXQ5L7r7Lg
+    "intermediate" →
+      Stack name: "Core Stack"
+      Tools: Vercel + Supabase + Clerk
+      Reason: "You're ready for a real stack with best-in-class tools for each layer."
+      First step: "Watch: Deploy Vibe Coding Projects for Free"
+      Link: https://www.youtube.com/watch?v=85JVKjW-uG0
+    "advanced" →
+      Stack name: "Power Stack"
+      Tools: Vercel + Neon + Clerk + Claude Code
+      Reason: "The full stack for intentional, high-velocity builders. Pair with Cowork Skills."
+      First step: "Watch: Advanced Claude Code"
+      Link: https://youtu.be/UPtmKh1vMN8
+- Display as a card: bg var(--surface), border var(--primary) at 30% opacity, rounded-xl, padding 24px
+- Stack name as a small muted label, tools as bold heading, reason as body text, first step as a link in var(--primary)
+
+BLOCK 5 — Weakest Area Callouts
+- Heading: "Your Biggest Opportunities"
+- Show the 2 weakest categories (result.weakest) as cards side by side
+- Use this mapping for each category ID → recommendation:
+    "ai-tools" → { title: "AI Coding Tools", action: "Start with the Claude Code 4 Hour Course", link: "https://youtu.be/QoQBzR1NIqI", skill: "Install: code-build-copilot skill" }
+    "deployment" → { title: "Deployment & Hosting", action: "Watch: Deploy Vibe Coding Projects for Free", link: "https://www.youtube.com/watch?v=85JVKjW-uG0", skill: "Try: Vercel — connect a GitHub repo" }
+    "auth-data" → { title: "Auth & Data", action: "Watch: Supabase Full Course 2025", link: "https://www.youtube.com/watch?v=kyphLGnSz6Q", skill: "Install: mcp-assistant skill" }
+    "ux-design" → { title: "UX Design Sourcing", action: "Explore Mobbin + 21st.dev before your next build", link: "https://mobbin.com", skill: "Reference: Dribbble for layout inspiration" }
+    "product" → { title: "Product Thinking", action: "Install the PRD Assistant skill", link: "https://github.com/theofficialaiwithai/cowork-skills/tree/main/skills/prd-assistant", skill: "Validate first: browse Ideabrowser" }
+- Each card: bg var(--surface), border var(--border), rounded-xl, padding 20px
+- Show title bold, action as a clickable link in var(--primary), skill as small muted text below
+
+BLOCK 6 — CTA Row
+- Two buttons side by side, centered:
+    1. "Browse Your Hub →" → navigates to /hub, filled primary button
+    2. "Retake Assessment" → navigates to /assessment, outlined button
+- Above the buttons, a small muted note: "Your results are saved locally in your browser."
