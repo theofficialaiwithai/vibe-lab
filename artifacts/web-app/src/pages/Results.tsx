@@ -143,27 +143,12 @@ function CategoryRow({ cat }: { cat: CategoryScore }) {
 // ── Share-id detection (nanoid(8) — anything that isn't "local") ──
 const isShareId = (token: string) => token !== "local";
 
-// ── Share button ──────────────────────────────────────────────────
-function ShareButton() {
-  const [copied, setCopied] = useState(false);
-
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // clipboard not available
-    }
-  }
-
+// ── View Resources button ─────────────────────────────────────────
+function ViewResourcesButton() {
   return (
-    <button
-      onClick={() => void handleCopy()}
-      style={{ ...btnOutline, cursor: "pointer" }}
-    >
-      {copied ? "Copied! ✓" : "Copy Share Link"}
-    </button>
+    <Link to="/resources" style={btnOutline}>
+      View Resources
+    </Link>
   );
 }
 
@@ -425,7 +410,7 @@ function ResultsBody({ result, token }: { result: Result; token: string }) {
             </p>
           )}
           <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
-            {isShareable && <ShareButton />}
+            <ViewResourcesButton />
             <button
               onClick={() => navigate("/assessment")}
               style={{ ...btnOutline, cursor: "pointer" }}

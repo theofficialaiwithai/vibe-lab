@@ -59,7 +59,7 @@ export default function Footer() {
             Assessment
           </Link>
           <Link
-            to="/hub"
+            to="/resources"
             style={{
               fontFamily: "monospace",
               fontSize: 12,
@@ -69,7 +69,7 @@ export default function Footer() {
             onMouseEnter={(e) => (e.currentTarget.style.color = "var(--foreground)")}
             onMouseLeave={(e) => (e.currentTarget.style.color = "var(--muted)")}
           >
-            Hub
+            Resources
           </Link>
         </div>
       </div>

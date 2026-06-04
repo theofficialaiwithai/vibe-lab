@@ -376,7 +376,7 @@ export default function Hub() {
           <h1
             style={{ fontSize: 40, fontWeight: 800, color: "#ffffff", marginBottom: 12, lineHeight: 1.15 }}
           >
-            Curated Hub
+            Resources
           </h1>
           <p
             style={{ fontSize: 17, color: "var(--foreground)", opacity: 0.6, lineHeight: 1.6, maxWidth: 640, marginBottom: 16 }}

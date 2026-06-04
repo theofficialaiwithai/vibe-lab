@@ -76,7 +76,7 @@ export default function Nav() {
             Assessment
           </Link>
           <Link
-            to="/hub"
+            to="/resources"
             style={{
               color: "var(--foreground)",
               opacity: 0.6,
@@ -89,7 +89,7 @@ export default function Nav() {
             onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
             onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.6")}
           >
-            Hub
+            Resources
           </Link>
 
           {/* Auth area */}

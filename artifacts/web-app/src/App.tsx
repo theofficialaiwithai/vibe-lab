@@ -259,6 +259,7 @@ function ClerkProviderWithRoutes() {
           <Route path="/assessment" element={<Assessment />} />
           <Route path="/results/:token" element={<Results />} />
           <Route path="/personalize" element={<Personalize />} />
+          <Route path="/resources" element={<Hub />} />
           <Route path="/hub" element={<Hub />} />
           <Route path="/sign-in/*" element={<SignInPage />} />
           <Route path="/sign-up/*" element={<SignUpPage />} />
