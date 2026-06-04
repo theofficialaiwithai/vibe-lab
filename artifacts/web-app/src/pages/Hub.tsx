@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ExternalLink } from "lucide-react";
 import Layout from "@/components/Layout";
 import { VIDEOS, COWORK_SKILLS, STACK } from "@/lib/data/resources";
 import { levelLabel } from "@/lib/data/scoring";
 import type { Level } from "@/lib/data/scoring";
 import type { Resource } from "@/lib/data/resources";
+import PersonalizedHub from "./PersonalizedHub";
 
 type Tab = "all" | "videos" | "skills" | "stack";
 type LevelFilter = "all" | Level;
@@ -305,8 +307,16 @@ function ToolCard({ r }: { r: Resource }) {
   );
 }
 
-// ── Main page ──────────────────────────────────────────────────────
+// ── Route switcher ─────────────────────────────────────────────────
 export default function Hub() {
+  const [searchParams] = useSearchParams();
+  const shareId = searchParams.get("id");
+  if (shareId) return <PersonalizedHub shareId={shareId} />;
+  return <ResourceDirectory />;
+}
+
+// ── Resource directory (the /resources page) ───────────────────────
+function ResourceDirectory() {
   const [tab, setTab] = useState<Tab>("all");
   const [levelFilter, setLevelFilter] = useState<LevelFilter>("all");
   const [resultLevel, setResultLevel] = useState<Level | undefined>(undefined);
