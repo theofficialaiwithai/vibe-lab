@@ -11,7 +11,7 @@ import Layout from "@/components/Layout";
 import { levelLabel, levelTagline } from "@/lib/data/scoring";
 import type { Result, CategoryScore, Level } from "@/lib/data/scoring";
 import type { CategoryId } from "@/lib/data/questions";
-import { getResult } from "@workspace/api-client-react";
+import { sql } from "@/lib/db";
 
 // ── Stack recommendations ──────────────────────────────────────────
 const STACKS: Record<Level, { name: string; tools: string; reason: string; firstStep: string; link: string }> = {
@@ -140,8 +140,8 @@ function CategoryRow({ cat }: { cat: CategoryScore }) {
   );
 }
 
-// ── UUID detection ────────────────────────────────────────────────
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// ── Share-id detection (nanoid(8) — anything that isn't "local") ──
+const isShareId = (token: string) => token !== "local";
 
 // ── Share button ──────────────────────────────────────────────────
 function ShareButton() {
@@ -172,7 +172,7 @@ function ResultsBody({ result, token }: { result: Result; token: string }) {
   const navigate = useNavigate();
   const stack = STACKS[result.level as Level];
   const radarData = result.scores.map((s) => ({ subject: s.short, score: s.score, fullMark: 100 }));
-  const isShareable = UUID_RE.test(token);
+  const isShareable = isShareId(token);
 
   return (
     <Layout>
@@ -347,27 +347,37 @@ function RemoteResult({ token }: { token: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    getResult(token)
-      .then((data) => {
+
+    async function load() {
+      try {
+        const rows = await sql`
+          SELECT score, category_scores
+          FROM assessment_results
+          WHERE share_id = ${token}
+          LIMIT 1
+        `;
         if (cancelled) return;
-        const r: Result = {
-          overall: data.overall_score,
-          level: data.level as Level,
-          scores: data.scores as CategoryScore[],
-          weakest: (data.scores as CategoryScore[])
-            .slice()
-            .sort((a, b) => a.score - b.score)
-            .slice(0, 2)
-            .map((s) => s.id),
-        };
-        setResult(r);
-      })
-      .catch(() => {
+        if (rows.length === 0) {
+          setNotFound(true);
+          return;
+        }
+        const row = rows[0] as { score: number; category_scores: CategoryScore[] };
+        const scores = row.category_scores as CategoryScore[];
+        const overall = row.score;
+        const level: Level = overall < 40 ? "beginner" : overall < 75 ? "intermediate" : "advanced";
+        const weakest = [...scores]
+          .sort((a, b) => a.score - b.score)
+          .slice(0, 2)
+          .map((s) => s.id) as CategoryId[];
+        setResult({ overall, level, scores, weakest });
+      } catch {
         if (!cancelled) setNotFound(true);
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    }
+
+    void load();
     return () => { cancelled = true; };
   }, [token]);
 
@@ -388,8 +398,8 @@ function RemoteResult({ token }: { token: string }) {
             padding: "40px 24px",
           }}
         >
-          <p style={{ color: "var(--foreground)", opacity: 0.6, fontSize: 18 }}>Result not found.</p>
-          <Link to="/assessment" style={btnPrimary}>Take the Assessment →</Link>
+          <p style={{ color: "var(--foreground)", opacity: 0.6, fontSize: 18 }}>This result couldn't be found.</p>
+          <Link to="/assessment" style={btnPrimary}>Take the assessment to get your results →</Link>
         </div>
       </Layout>
     );
@@ -402,8 +412,8 @@ function RemoteResult({ token }: { token: string }) {
 export default function Results() {
   const { token = "local" } = useParams<{ token: string }>();
 
-  // UUID token → fetch from API
-  if (UUID_RE.test(token)) {
+  // share_id (nanoid) → fetch from Neon
+  if (isShareId(token)) {
     return <RemoteResult token={token} />;
   }
 

@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUser } from "@clerk/react";
+import { toast } from "sonner";
+import { nanoid } from "nanoid";
 import Layout from "@/components/Layout";
+import { sql } from "@/lib/db";
 import { QUESTIONS } from "@/lib/data/questions";
 import { scoreAnswers } from "@/lib/data/scoring";
 import type { Answers } from "@/lib/data/scoring";
-import { saveResult } from "@workspace/api-client-react";
 
 const CATEGORY_LABELS: Record<string, string> = {
   "ai-tools":   "AI Coding Tools",
@@ -34,7 +35,6 @@ const pillStyle: React.CSSProperties = {
 
 export default function Assessment() {
   const navigate = useNavigate();
-  const { user } = useUser();
   const [step, setStep] = useState<number>(-1);
   const [answers, setAnswers] = useState<Answers>({});
   const [submitting, setSubmitting] = useState(false);
@@ -42,17 +42,25 @@ export default function Assessment() {
   async function finish(finalAnswers: Answers) {
     setSubmitting(true);
     const result = scoreAnswers(finalAnswers);
+
+    // Always save locally as a safety net
     localStorage.setItem("vibelab:result", JSON.stringify(result));
 
     try {
-      const { share_token } = await saveResult({
-        scores: result.scores,
-        overall_score: result.overall,
-        level: result.level,
-        user_id: user?.id ?? null,
-      });
-      navigate(`/results/${share_token}`);
-    } catch {
+      const shareId = nanoid(8);
+      await sql`
+        INSERT INTO assessment_results (share_id, score, category_scores, answers)
+        VALUES (
+          ${shareId},
+          ${result.overall},
+          ${JSON.stringify(result.scores)},
+          ${JSON.stringify(finalAnswers)}
+        )
+      `;
+      navigate(`/results/${shareId}`);
+    } catch (err) {
+      console.error("Neon save failed:", err);
+      toast.error("Saved locally — share link unavailable");
       navigate("/results/local");
     }
   }

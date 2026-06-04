@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { ClerkProvider, SignIn, SignUp } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
+import { Toaster } from "sonner";
 import Home from "@/pages/Home";
 import Assessment from "@/pages/Assessment";
 import Results from "@/pages/Results";
@@ -260,6 +261,7 @@ function ClerkProviderWithRoutes() {
           <Route path="/sign-in/*" element={<SignInPage />} />
           <Route path="/sign-up/*" element={<SignUpPage />} />
         </Routes>
+        <Toaster theme="dark" position="bottom-right" richColors />
       </div>
     </ClerkProvider>
   );
