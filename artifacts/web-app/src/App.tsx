@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import Home from "@/pages/Home";
 import Assessment from "@/pages/Assessment";
 import Results from "@/pages/Results";
+import Personalize from "@/pages/Personalize";
 import Hub from "@/pages/Hub";
 
 const clerkPubKey = publishableKeyFromHost(
@@ -257,6 +258,7 @@ function ClerkProviderWithRoutes() {
           <Route path="/" element={<Home />} />
           <Route path="/assessment" element={<Assessment />} />
           <Route path="/results/:token" element={<Results />} />
+          <Route path="/personalize" element={<Personalize />} />
           <Route path="/hub" element={<Hub />} />
           <Route path="/sign-in/*" element={<SignInPage />} />
           <Route path="/sign-up/*" element={<SignUpPage />} />

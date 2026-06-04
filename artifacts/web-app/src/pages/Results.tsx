@@ -174,6 +174,23 @@ function ResultsBody({ result, token }: { result: Result; token: string }) {
   const radarData = result.scores.map((s) => ({ subject: s.short, score: s.score, fullMark: 100 }));
   const isShareable = isShareId(token);
 
+  // Check whether user already has a personalization profile
+  const [hasProfile, setHasProfile] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!isShareable) { setHasProfile(false); return; }
+    let cancelled = false;
+    sql`SELECT id FROM user_profiles WHERE share_id = ${token} LIMIT 1`
+      .then((rows) => { if (!cancelled) setHasProfile(rows.length > 0); })
+      .catch(() => { if (!cancelled) setHasProfile(false); });
+    return () => { cancelled = true; };
+  }, [token, isShareable]);
+
+  function goToPersonalize() {
+    if (isShareable) sessionStorage.setItem("vibelab:share_id", token);
+    navigate("/personalize");
+  }
+
   return (
     <Layout>
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "60px 24px 100px" }}>
@@ -287,7 +304,120 @@ function ResultsBody({ result, token }: { result: Result; token: string }) {
           </div>
         </div>
 
-        {/* ── BLOCK 6: CTA Row ── */}
+        {/* ── BLOCK 6: Personalized Hub CTA ── */}
+        <div
+          style={{
+            marginBottom: 32,
+            borderRadius: 20,
+            padding: 2,
+            background: "linear-gradient(135deg, rgba(99,102,241,0.6) 0%, rgba(139,92,246,0.4) 50%, rgba(99,102,241,0.2) 100%)",
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "var(--background)",
+              borderRadius: 18,
+              padding: "40px 32px",
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "5px 12px",
+                borderRadius: 999,
+                backgroundColor: "rgba(99,102,241,0.12)",
+                border: "1px solid rgba(99,102,241,0.25)",
+                color: "var(--primary)",
+                fontSize: 11,
+                fontFamily: "monospace",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                marginBottom: 20,
+              }}
+            >
+              Personalized for you
+            </div>
+            <h2
+              style={{
+                fontSize: "clamp(22px, 4vw, 28px)",
+                fontWeight: 800,
+                color: "#ffffff",
+                marginBottom: 12,
+                letterSpacing: "-0.01em",
+                lineHeight: 1.2,
+              }}
+            >
+              Want a learning hub built just for you?
+            </h2>
+            <p
+              style={{
+                color: "var(--foreground)",
+                opacity: 0.6,
+                fontSize: 16,
+                lineHeight: 1.65,
+                maxWidth: 440,
+                margin: "0 auto 28px",
+              }}
+            >
+              Answer 4 quick questions and we'll build your personalized path to becoming a Vibe Architect.
+            </p>
+
+            {hasProfile === null ? (
+              // Still checking — show a placeholder button
+              <div
+                style={{
+                  display: "inline-block",
+                  backgroundColor: "var(--primary)",
+                  color: "#ffffff",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  padding: "14px 32px",
+                  borderRadius: 10,
+                  opacity: 0.5,
+                  cursor: "default",
+                }}
+              >
+                Loading...
+              </div>
+            ) : hasProfile ? (
+              <Link
+                to={`/hub?id=${token}`}
+                style={{
+                  display: "inline-block",
+                  backgroundColor: "var(--primary)",
+                  color: "#ffffff",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  padding: "14px 32px",
+                  borderRadius: 10,
+                  textDecoration: "none",
+                }}
+              >
+                Go to My Hub →
+              </Link>
+            ) : (
+              <button
+                onClick={goToPersonalize}
+                style={{
+                  backgroundColor: "var(--primary)",
+                  color: "#ffffff",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  padding: "14px 32px",
+                  borderRadius: 10,
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Build My Hub →
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── BLOCK 7: Secondary CTA Row ── */}
         <div style={{ textAlign: "center" }}>
           {!isShareable && (
             <p style={{ fontSize: 12, color: "var(--foreground)", opacity: 0.4, fontFamily: "monospace", marginBottom: 20 }}>
@@ -295,7 +425,6 @@ function ResultsBody({ result, token }: { result: Result; token: string }) {
             </p>
           )}
           <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
-            <Link to="/hub" style={btnPrimary}>Browse Your Hub →</Link>
             {isShareable && <ShareButton />}
             <button
               onClick={() => navigate("/assessment")}
