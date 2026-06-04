@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { ExternalLink, ChevronDown, ChevronUp, Lock } from "lucide-react";
 import Layout from "@/components/Layout";
 import { sql } from "@/lib/db";
@@ -26,6 +27,8 @@ type AssessmentData = {
 };
 
 type HubResource = Resource & { phase: PhaseNum };
+
+type AggRating = { avg: number; total: number };
 
 // ── Phase metadata ────────────────────────────────────────────────
 const PHASES: { num: PhaseNum; title: string; subtitle: string }[] = [
@@ -78,45 +81,25 @@ const PLACEHOLDERS: HubResource[] = [
     id: "ph-first-deploy",
     title: "Ship Your First Project in 30 Minutes",
     description: "A hands-on walkthrough of the fastest path from idea to live URL — using Replit + Vercel with zero config.",
-    url: "#",
-    type: "video",
-    level: "beginner",
-    categories: ["deployment"],
-    meta: "Coming soon",
-    phase: 1,
+    url: "#", type: "video", level: "beginner", categories: ["deployment"], meta: "Coming soon", phase: 1,
   },
   {
     id: "ph-ai-prompt-patterns",
     title: "AI Prompt Patterns That Actually Work",
     description: "The 5 prompting patterns that consistently produce buildable code from Claude, Codex, and Replit Agent.",
-    url: "#",
-    type: "video",
-    level: "beginner",
-    categories: ["ai-tools"],
-    meta: "Coming soon",
-    phase: 1,
+    url: "#", type: "video", level: "beginner", categories: ["ai-tools"], meta: "Coming soon", phase: 1,
   },
   {
     id: "ph-stack-setup",
     title: "Full-Stack Setup: Neon + Clerk + Vercel",
     description: "Wire up a production-ready stack from scratch — database, auth, and deployment — in one afternoon.",
-    url: "#",
-    type: "video",
-    level: "intermediate",
-    categories: ["auth-data", "deployment"],
-    meta: "Coming soon",
-    phase: 2,
+    url: "#", type: "video", level: "intermediate", categories: ["auth-data", "deployment"], meta: "Coming soon", phase: 2,
   },
   {
     id: "ph-validate-idea",
     title: "Validate Before You Build",
     description: "Use Ideabrowser, landing pages, and AI to test demand for your idea before writing a single line of code.",
-    url: "#",
-    type: "skill",
-    level: "advanced",
-    categories: ["product"],
-    meta: "Coming soon",
-    phase: 3,
+    url: "#", type: "skill", level: "advanced", categories: ["product"], meta: "Coming soon", phase: 3,
   },
 ];
 
@@ -172,10 +155,8 @@ function filterPhaseResources(
   weakest: CategoryId[],
 ): HubResource[] {
   const forPhase = all.filter((r) => r.phase === phase);
-
   const sorted = [...forPhase].sort((a, b) => {
     const ls = profile.learning_style;
-    // Learning style preference
     if (ls === "Watching videos") {
       if (a.type === "video" && b.type !== "video") return -1;
       if (b.type === "video" && a.type !== "video") return 1;
@@ -183,14 +164,12 @@ function filterPhaseResources(
       if (a.type === "skill" && b.type !== "skill") return -1;
       if (b.type === "skill" && a.type !== "skill") return 1;
     }
-    // Weakest-category priority
     const aWeak = a.categories.some((c) => weakest.includes(c as CategoryId));
     const bWeak = b.categories.some((c) => weakest.includes(c as CategoryId));
     if (aWeak && !bWeak) return -1;
     if (bWeak && !aWeak) return 1;
     return 0;
   });
-
   const max = profile.time_per_week === "Less than 2 hours" ? 4 : 8;
   return sorted.slice(0, max);
 }
@@ -199,16 +178,10 @@ function filterPhaseResources(
 function Spinner() {
   return (
     <Layout>
-      <div style={{
-        minHeight: "calc(100vh - 56px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}>
+      <div style={{ minHeight: "calc(100vh - 56px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{
           width: 36, height: 36, borderRadius: "50%",
-          border: "3px solid var(--border)",
-          borderTopColor: "var(--primary)",
+          border: "3px solid var(--border)", borderTopColor: "var(--primary)",
           animation: "spin 0.8s linear infinite",
         }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -217,8 +190,12 @@ function Spinner() {
   );
 }
 
-// ── Star rating ───────────────────────────────────────────────────
-function StarRating({ rating, onRate, locked }: { rating: number; onRate: (n: number) => void; locked: boolean }) {
+// ── Star rating (user's own) ──────────────────────────────────────
+function StarRating({
+  rating, onRate, locked,
+}: {
+  rating: number; onRate: (n: number) => void; locked: boolean;
+}) {
   const [hover, setHover] = useState(0);
   return (
     <div style={{ display: "flex", gap: 1 }}>
@@ -230,35 +207,42 @@ function StarRating({ rating, onRate, locked }: { rating: number; onRate: (n: nu
           onMouseEnter={() => !locked && setHover(n)}
           onMouseLeave={() => setHover(0)}
           style={{
-            background: "none",
-            border: "none",
+            background: "none", border: "none",
             cursor: locked ? "default" : "pointer",
-            fontSize: 17,
-            padding: "0 1px",
+            fontSize: 17, padding: "0 1px",
             color: n <= (hover || rating) ? "#f59e0b" : "rgba(255,255,255,0.15)",
-            transition: "color 0.1s",
-            lineHeight: 1,
+            transition: "color 0.1s", lineHeight: 1,
           }}
-        >
-          ★
-        </button>
+        >★</button>
       ))}
     </div>
   );
 }
 
+// ── Aggregate rating display ──────────────────────────────────────
+function AggRatingDisplay({ agg }: { agg: AggRating | undefined }) {
+  if (!agg || agg.total === 0) {
+    return (
+      <span style={{ fontSize: 11, color: "var(--foreground)", opacity: 0.3, fontFamily: "monospace" }}>
+        No ratings yet
+      </span>
+    );
+  }
+  return (
+    <span style={{ fontSize: 12, color: "var(--foreground)", opacity: 0.55, fontFamily: "monospace" }}>
+      ⭐ {agg.avg.toFixed(1)} · {agg.total} {agg.total === 1 ? "rating" : "ratings"}
+    </span>
+  );
+}
+
 // ── Resource card ─────────────────────────────────────────────────
 function ResourceCard({
-  resource,
-  completed,
-  rating,
-  locked,
-  onComplete,
-  onRate,
+  resource, completed, rating, aggRating, locked, onComplete, onRate,
 }: {
   resource: HubResource;
   completed: boolean;
-  rating: number;
+  rating: number;       // this user's rating
+  aggRating: AggRating | undefined;  // all-user aggregate
   locked: boolean;
   onComplete: () => void;
   onRate: (n: number) => void;
@@ -268,67 +252,42 @@ function ResourceCard({
   const isPlaceholder = resource.url === "#";
 
   const TYPE_BADGE: Record<string, { bg: string; color: string; label: string }> = {
-    video: { bg: "rgba(239,68,68,0.12)", color: "#f87171", label: "Video" },
-    skill: { bg: "rgba(99,102,241,0.12)", color: "var(--primary)", label: "Cowork Skill" },
-    tool:  { bg: "rgba(34,197,94,0.12)",  color: "#22c55e",       label: "Tool" },
+    video: { bg: "rgba(239,68,68,0.12)",   color: "#f87171",       label: "Video" },
+    skill: { bg: "rgba(99,102,241,0.12)",  color: "var(--primary)", label: "Cowork Skill" },
+    tool:  { bg: "rgba(34,197,94,0.12)",   color: "#22c55e",        label: "Tool" },
   };
   const badge = TYPE_BADGE[resource.type] ?? TYPE_BADGE.tool;
 
   return (
-    <div
-      style={{
-        backgroundColor: "var(--surface)",
-        border: `1px solid ${completed ? "rgba(34,197,94,0.35)" : "var(--border)"}`,
-        borderRadius: 14,
-        padding: 20,
-        opacity: locked ? 0.5 : 1,
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-        position: "relative",
-      }}
-    >
+    <div style={{
+      backgroundColor: "var(--surface)",
+      border: `1px solid ${completed ? "rgba(34,197,94,0.35)" : "var(--border)"}`,
+      borderRadius: 14, padding: 20, opacity: locked ? 0.5 : 1,
+      display: "flex", flexDirection: "column", gap: 12,
+    }}>
       {/* Top row */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Type badge */}
           <span style={{
             display: "inline-block",
-            backgroundColor: badge.bg,
-            color: badge.color,
-            fontSize: 10,
-            fontWeight: 700,
-            padding: "2px 8px",
-            borderRadius: 999,
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
-            marginBottom: 8,
+            backgroundColor: badge.bg, color: badge.color,
+            fontSize: 10, fontWeight: 700, padding: "2px 8px",
+            borderRadius: 999, textTransform: "uppercase",
+            letterSpacing: "0.06em", marginBottom: 8,
           }}>
             {badge.label}
           </span>
-          {/* Title */}
           <p style={{ fontWeight: 700, fontSize: 15, color: "#ffffff", lineHeight: 1.3, marginBottom: 0 }}>
             {resource.title}
           </p>
         </div>
-
-        {/* Completed badge */}
         {completed && (
           <span style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            backgroundColor: "rgba(34,197,94,0.12)",
-            color: "#22c55e",
-            fontSize: 11,
-            fontWeight: 700,
-            padding: "3px 10px",
-            borderRadius: 999,
-            whiteSpace: "nowrap",
-            flexShrink: 0,
-          }}>
-            ✓ Done
-          </span>
+            display: "inline-flex", alignItems: "center", gap: 4,
+            backgroundColor: "rgba(34,197,94,0.12)", color: "#22c55e",
+            fontSize: 11, fontWeight: 700, padding: "3px 10px",
+            borderRadius: 999, whiteSpace: "nowrap", flexShrink: 0,
+          }}>✓ Done</span>
         )}
       </div>
 
@@ -340,14 +299,9 @@ function ResourceCard({
       {/* Meta */}
       {resource.meta && !isPlaceholder && (
         <span style={{
-          display: "inline-block",
-          fontFamily: "monospace",
-          fontSize: 11,
-          backgroundColor: "rgba(255,255,255,0.05)",
-          color: "var(--foreground)",
-          opacity: 0.5,
-          padding: "2px 8px",
-          borderRadius: 999,
+          display: "inline-block", fontFamily: "monospace", fontSize: 11,
+          backgroundColor: "rgba(255,255,255,0.05)", color: "var(--foreground)",
+          opacity: 0.5, padding: "2px 8px", borderRadius: 999,
         }}>
           {resource.meta}
         </span>
@@ -359,16 +313,9 @@ function ResourceCard({
           <button
             onClick={() => setInstallOpen((o) => !o)}
             style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              color: "var(--primary)",
-              fontSize: 12,
-              fontWeight: 600,
-              padding: 0,
+              background: "none", border: "none", cursor: "pointer",
+              display: "inline-flex", alignItems: "center", gap: 4,
+              color: "var(--primary)", fontSize: 12, fontWeight: 600, padding: 0,
             }}
           >
             {installOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
@@ -379,13 +326,9 @@ function ResourceCard({
               marginTop: 8,
               backgroundColor: "rgba(99,102,241,0.06)",
               border: "1px solid rgba(99,102,241,0.18)",
-              borderRadius: 8,
-              padding: "10px 14px",
-              fontFamily: "monospace",
-              fontSize: 12,
-              color: "var(--foreground)",
-              opacity: 0.8,
-              lineHeight: 1.7,
+              borderRadius: 8, padding: "10px 14px",
+              fontFamily: "monospace", fontSize: 12,
+              color: "var(--foreground)", opacity: 0.8, lineHeight: 1.7,
             }}>
               {installText}
             </div>
@@ -393,35 +336,35 @@ function ResourceCard({
         </div>
       )}
 
-      {/* Bottom row: stars + actions */}
+      {/* Bottom row: ratings + actions */}
       <div style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        flexWrap: "wrap",
-        gap: 10,
-        paddingTop: 4,
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        flexWrap: "wrap", gap: 10, paddingTop: 8,
         borderTop: "1px solid var(--border)",
       }}>
-        {/* Star rating */}
-        <StarRating rating={rating} onRate={onRate} locked={locked} />
+        {/* Left: user stars + aggregate */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <StarRating rating={rating} onRate={onRate} locked={locked} />
+            {rating > 0 && (
+              <span style={{ fontSize: 10, color: "var(--foreground)", opacity: 0.35, fontFamily: "monospace" }}>
+                your rating
+              </span>
+            )}
+          </div>
+          <AggRatingDisplay agg={aggRating} />
+        </div>
 
-        {/* Action buttons */}
+        {/* Right: open link + mark complete */}
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {/* External link (not for placeholders) */}
           {!isPlaceholder && (
             <a
               href={resource.url}
               target="_blank"
               rel="noopener noreferrer"
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 5,
-                color: "var(--foreground)",
-                opacity: 0.5,
-                fontSize: 12,
-                textDecoration: "none",
+                display: "inline-flex", alignItems: "center", gap: 5,
+                color: "var(--foreground)", opacity: 0.5, fontSize: 12, textDecoration: "none",
               }}
               onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
               onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.5")}
@@ -430,25 +373,18 @@ function ResourceCard({
             </a>
           )}
 
-          {/* Mark complete button */}
           {!locked && (
             <button
               onClick={onComplete}
               disabled={completed}
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 5,
+                display: "inline-flex", alignItems: "center", gap: 5,
                 backgroundColor: completed ? "rgba(34,197,94,0.12)" : "var(--primary)",
                 color: completed ? "#22c55e" : "#ffffff",
                 border: completed ? "1px solid rgba(34,197,94,0.3)" : "none",
-                fontSize: 12,
-                fontWeight: 600,
-                padding: "6px 14px",
-                borderRadius: 7,
-                cursor: completed ? "default" : "pointer",
-                whiteSpace: "nowrap",
-                transition: "all 0.15s",
+                fontSize: 12, fontWeight: 600, padding: "6px 14px",
+                borderRadius: 7, cursor: completed ? "default" : "pointer",
+                whiteSpace: "nowrap", transition: "all 0.15s",
               }}
             >
               {completed ? "Completed ✓" : "Mark Complete"}
@@ -457,12 +393,8 @@ function ResourceCard({
 
           {locked && (
             <span style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              color: "var(--foreground)",
-              opacity: 0.3,
-              fontSize: 12,
+              display: "inline-flex", alignItems: "center", gap: 4,
+              color: "var(--foreground)", opacity: 0.3, fontSize: 12,
             }}>
               <Lock size={12} /> Locked
             </span>
@@ -480,16 +412,57 @@ function PhaseProgress({ completed, total }: { completed: number; total: number 
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <div style={{ flex: 1, height: 6, backgroundColor: "var(--border)", borderRadius: 3, overflow: "hidden" }}>
         <div style={{
-          height: "100%",
-          width: `${pct}%`,
-          backgroundColor: "var(--primary)",
-          borderRadius: 3,
-          transition: "width 0.4s ease",
+          height: "100%", width: `${pct}%`,
+          backgroundColor: pct === 100 ? "#22c55e" : "var(--primary)",
+          borderRadius: 3, transition: "width 0.4s ease, background-color 0.3s",
         }} />
       </div>
       <span style={{ fontSize: 12, fontFamily: "monospace", color: "var(--foreground)", opacity: 0.5, flexShrink: 0 }}>
         {completed}/{total}
       </span>
+    </div>
+  );
+}
+
+// ── Phase complete banner ─────────────────────────────────────────
+function PhaseCompleteBanner() {
+  return (
+    <div style={{
+      marginTop: 32,
+      borderRadius: 16,
+      padding: 2,
+      background: "linear-gradient(135deg, rgba(34,197,94,0.6) 0%, rgba(16,185,129,0.4) 100%)",
+    }}>
+      <div style={{
+        backgroundColor: "var(--background)",
+        borderRadius: 14,
+        padding: "28px 32px",
+        textAlign: "center",
+      }}>
+        <div style={{ fontSize: 36, marginBottom: 10 }}>🎉</div>
+        <h3 style={{ fontSize: 20, fontWeight: 800, color: "#ffffff", marginBottom: 8 }}>
+          Phase Complete!
+        </h3>
+        <p style={{ fontSize: 14, color: "var(--foreground)", opacity: 0.6, marginBottom: 20, lineHeight: 1.6 }}>
+          You've worked through everything in this phase. Ready to put it into practice?
+        </p>
+        <a
+          href="#build-challenge"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            backgroundColor: "#22c55e",
+            color: "#ffffff",
+            fontWeight: 700,
+            fontSize: 14,
+            padding: "12px 24px",
+            borderRadius: 9,
+            textDecoration: "none",
+          }}
+        >
+          Ready for your Build Challenge? →
+        </a>
+      </div>
     </div>
   );
 }
@@ -502,30 +475,36 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
   const [assessment, setAssessment] = useState<AssessmentData | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
 
-  // Interaction state — maps resource ID to state
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
   const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [aggRatings, setAggRatings] = useState<Record<string, AggRating>>({});
 
   const [activePhase, setActivePhase] = useState<PhaseNum>(1);
 
-  // ── Load data ───────────────────────────────────────────────────
+  // ── Load all data on mount ──────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       try {
-        const [assessmentRows, profileRows, completedRows, ratingRows] = await Promise.all([
+        const [assessmentRows, profileRows, completedRows, ratingRows, aggRows] = await Promise.all([
           sql`SELECT score, category_scores FROM assessment_results WHERE share_id = ${shareId} LIMIT 1`,
-          sql`SELECT main_goal, time_per_week, learning_style, current_status, current_level, current_phase FROM user_profiles WHERE share_id = ${shareId} LIMIT 1`,
+          sql`SELECT main_goal, time_per_week, learning_style, current_status, current_level, current_phase
+              FROM user_profiles WHERE share_id = ${shareId} LIMIT 1`,
           sql`SELECT resource_id FROM user_resource_progress WHERE share_id = ${shareId}`,
           sql`SELECT resource_id, rating FROM resource_ratings WHERE share_id = ${shareId}`,
+          // Aggregate ratings across ALL users for every resource
+          sql`SELECT resource_id,
+                     ROUND(AVG(rating)::numeric, 1)::float AS avg_rating,
+                     COUNT(*)::int                         AS total_ratings
+              FROM resource_ratings
+              GROUP BY resource_id`,
         ]);
 
         if (cancelled) return;
 
         if (profileRows.length === 0) {
-          // No profile → redirect to personalize
-          navigate(`/personalize`, { replace: true });
+          navigate("/personalize", { replace: true });
           return;
         }
 
@@ -535,12 +514,12 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
         if (a) setAssessment(a);
         setProfile(p);
 
-        // Build completed map
+        // Completion map
         const cMap: Record<string, boolean> = {};
         for (const row of completedRows) cMap[(row as { resource_id: string }).resource_id] = true;
         setCompleted(cMap);
 
-        // Build ratings map
+        // This-user ratings map
         const rMap: Record<string, number> = {};
         for (const row of ratingRows) {
           const r = row as { resource_id: string; rating: number };
@@ -548,11 +527,15 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
         }
         setRatings(rMap);
 
-        // Set starting phase
-        if (a) {
-          const phase = derivePhase(a.score, p.current_status);
-          setActivePhase(phase);
+        // Global aggregate ratings map
+        const aMap: Record<string, AggRating> = {};
+        for (const row of aggRows) {
+          const r = row as { resource_id: string; avg_rating: number; total_ratings: number };
+          aMap[r.resource_id] = { avg: r.avg_rating, total: r.total_ratings };
         }
+        setAggRatings(aMap);
+
+        if (a) setActivePhase(derivePhase(a.score, p.current_status));
       } catch (err) {
         console.error("Failed to load hub data:", err);
       } finally {
@@ -564,30 +547,54 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
     return () => { cancelled = true; };
   }, [shareId, navigate]);
 
-  // ── Mark complete (optimistic) ──────────────────────────────────
+  // ── Mark complete (optimistic + toast on error) ─────────────────
   function handleComplete(resourceId: string) {
     setCompleted((prev) => ({ ...prev, [resourceId]: true }));
-    // Background sync
     void sql`
       INSERT INTO user_resource_progress (share_id, resource_id)
       VALUES (${shareId}, ${resourceId})
       ON CONFLICT (share_id, resource_id) DO NOTHING
-    `.catch(console.error);
+    `.catch((err) => {
+      console.error("Failed to save completion:", err);
+      toast.error("Couldn't save — check your connection");
+    });
   }
 
-  // ── Rate (optimistic) ───────────────────────────────────────────
-  function handleRate(resourceId: string, rating: number) {
-    setRatings((prev) => ({ ...prev, [resourceId]: rating }));
-    // Background sync
+  // ── Rate (optimistic + aggregate update + toast on error) ───────
+  function handleRate(resourceId: string, newRating: number) {
+    const prevRating = ratings[resourceId] ?? 0;
+    setRatings((prev) => ({ ...prev, [resourceId]: newRating }));
+
+    // Optimistically update aggregate
+    setAggRatings((prev) => {
+      const existing = prev[resourceId];
+      if (!existing) {
+        return { ...prev, [resourceId]: { avg: newRating, total: 1 } };
+      }
+      const wasRated = prevRating > 0;
+      if (wasRated) {
+        // Replace old rating in running average
+        const newAvg = (existing.avg * existing.total - prevRating + newRating) / existing.total;
+        return { ...prev, [resourceId]: { avg: Math.round(newAvg * 10) / 10, total: existing.total } };
+      } else {
+        // Add new rating
+        const newTotal = existing.total + 1;
+        const newAvg = (existing.avg * existing.total + newRating) / newTotal;
+        return { ...prev, [resourceId]: { avg: Math.round(newAvg * 10) / 10, total: newTotal } };
+      }
+    });
+
     void sql`
       INSERT INTO resource_ratings (share_id, resource_id, rating)
-      VALUES (${shareId}, ${resourceId}, ${rating})
-      ON CONFLICT (share_id, resource_id) DO UPDATE SET rating = ${rating}
-    `.catch(console.error);
+      VALUES (${shareId}, ${resourceId}, ${newRating})
+      ON CONFLICT (share_id, resource_id) DO UPDATE SET rating = ${newRating}
+    `.catch((err) => {
+      console.error("Failed to save rating:", err);
+      toast.error("Couldn't save — check your connection");
+    });
   }
 
   if (loading) return <Spinner />;
-
   if (!profile) return <Spinner />; // redirect in-flight
 
   // ── Derived values ───────────────────────────────────────────────
@@ -599,10 +606,8 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
     .map((s) => s.id) as CategoryId[];
   const assignedPhase = derivePhase(score, profile.current_status);
   const levelInfo = getLevelInfo(score);
-
   const ALL_HUB = buildHubResources();
 
-  // ── Styles ───────────────────────────────────────────────────────
   const surface: React.CSSProperties = {
     backgroundColor: "var(--surface)",
     border: "1px solid var(--border)",
@@ -615,35 +620,27 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
 
         {/* ── Header ── */}
         <div style={{ marginBottom: 40 }}>
-          {/* Level badge */}
           <div style={{ marginBottom: 12 }}>
             <span style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
+              display: "inline-flex", alignItems: "center", gap: 6,
               backgroundColor: "rgba(99,102,241,0.12)",
               border: "1px solid rgba(99,102,241,0.25)",
-              color: "var(--primary)",
-              fontSize: 12,
-              fontWeight: 700,
-              padding: "4px 12px",
-              borderRadius: 999,
-              letterSpacing: "0.04em",
+              color: "var(--primary)", fontSize: 12, fontWeight: 700,
+              padding: "4px 12px", borderRadius: 999, letterSpacing: "0.04em",
             }}>
               {levelInfo.emoji} {levelInfo.label}
             </span>
           </div>
-
           <h1 style={{ fontSize: "clamp(28px, 5vw, 40px)", fontWeight: 800, color: "#ffffff", lineHeight: 1.15, marginBottom: 8 }}>
             Your Personalized Hub
           </h1>
           <p style={{ fontSize: 16, color: "var(--foreground)", opacity: 0.55, marginBottom: 20 }}>
-            Curated for your goal: <strong style={{ color: "var(--foreground)", opacity: 0.9 }}>{profile.main_goal}</strong>
-            {" · "}
-            {profile.time_per_week}/week
+            Curated for your goal:{" "}
+            <strong style={{ color: "var(--foreground)", opacity: 0.9 }}>{profile.main_goal}</strong>
+            {" · "}{profile.time_per_week}/week
           </p>
 
-          {/* Overall progress (all phases) */}
+          {/* Overall progress */}
           {(() => {
             const total = ALL_HUB.length;
             const done = Object.values(completed).filter(Boolean).length;
@@ -651,11 +648,8 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ flex: 1, maxWidth: 320, height: 6, backgroundColor: "var(--border)", borderRadius: 3, overflow: "hidden" }}>
                   <div style={{
-                    height: "100%",
-                    width: `${total === 0 ? 0 : (done / total) * 100}%`,
-                    backgroundColor: "var(--primary)",
-                    borderRadius: 3,
-                    transition: "width 0.4s",
+                    height: "100%", width: `${total === 0 ? 0 : (done / total) * 100}%`,
+                    backgroundColor: "var(--primary)", borderRadius: 3, transition: "width 0.4s",
                   }} />
                 </div>
                 <span style={{ fontSize: 12, fontFamily: "monospace", color: "var(--foreground)", opacity: 0.45 }}>
@@ -673,6 +667,7 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
             const isLocked = num > assignedPhase;
             const phaseResources = filterPhaseResources(ALL_HUB, num, profile, weakest);
             const phaseCompleted = phaseResources.filter((r) => completed[r.id]).length;
+            const phaseComplete = phaseResources.length > 0 && phaseCompleted === phaseResources.length;
 
             return (
               <button
@@ -680,60 +675,36 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
                 disabled={isLocked}
                 onClick={() => !isLocked && setActivePhase(num)}
                 style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "flex-start",
-                  gap: 2,
-                  padding: "12px 18px",
-                  borderRadius: 12,
-                  border: isActive
-                    ? "1px solid rgba(99,102,241,0.6)"
-                    : "1px solid var(--border)",
+                  display: "flex", flexDirection: "column", alignItems: "flex-start",
+                  gap: 2, padding: "12px 18px", borderRadius: 12,
+                  border: isActive ? "1px solid rgba(99,102,241,0.6)" : "1px solid var(--border)",
                   backgroundColor: isActive ? "rgba(99,102,241,0.10)" : "var(--surface)",
                   cursor: isLocked ? "not-allowed" : "pointer",
                   opacity: isLocked ? 0.4 : 1,
-                  transition: "all 0.15s",
-                  textAlign: "left",
-                  minWidth: 140,
+                  transition: "all 0.15s", textAlign: "left", minWidth: 140,
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   {isLocked && <Lock size={11} color="var(--foreground)" opacity={0.5} />}
+                  {phaseComplete && !isLocked && <span style={{ fontSize: 11 }}>✅</span>}
                   <span style={{
-                    fontFamily: "monospace",
-                    fontSize: 10,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
+                    fontFamily: "monospace", fontSize: 10,
+                    textTransform: "uppercase", letterSpacing: "0.08em",
                     color: isActive ? "var(--primary)" : "var(--foreground)",
                     opacity: isActive ? 1 : 0.45,
                   }}>
                     Phase {num}
                   </span>
                   {!isLocked && (
-                    <span style={{
-                      fontSize: 10,
-                      fontFamily: "monospace",
-                      color: "var(--foreground)",
-                      opacity: 0.35,
-                    }}>
+                    <span style={{ fontSize: 10, fontFamily: "monospace", color: "var(--foreground)", opacity: 0.35 }}>
                       {phaseCompleted}/{phaseResources.length}
                     </span>
                   )}
                 </div>
-                <span style={{
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: isActive ? "#ffffff" : "var(--foreground)",
-                  opacity: isActive ? 1 : 0.7,
-                }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: isActive ? "#ffffff" : "var(--foreground)", opacity: isActive ? 1 : 0.7 }}>
                   {title}
                 </span>
-                <span style={{
-                  fontSize: 11,
-                  color: "var(--foreground)",
-                  opacity: 0.4,
-                  lineHeight: 1.4,
-                }}>
+                <span style={{ fontSize: 11, color: "var(--foreground)", opacity: 0.4, lineHeight: 1.4 }}>
                   {subtitle}
                 </span>
               </button>
@@ -746,14 +717,22 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
           const resources = filterPhaseResources(ALL_HUB, num, profile, weakest);
           const doneCount = resources.filter((r) => completed[r.id]).length;
           const isLocked = num > assignedPhase;
+          const phaseComplete = resources.length > 0 && doneCount === resources.length;
 
           return (
             <div key={num}>
-              {/* Phase header */}
+              {/* Phase header card */}
               <div style={{ ...surface, padding: "20px 24px", marginBottom: 24 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 12 }}>
+                <div style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  flexWrap: "wrap", gap: 12, marginBottom: 12,
+                }}>
                   <div>
-                    <p style={{ fontFamily: "monospace", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--primary)", marginBottom: 4 }}>
+                    <p style={{
+                      fontFamily: "monospace", fontSize: 10,
+                      textTransform: "uppercase", letterSpacing: "0.1em",
+                      color: "var(--primary)", marginBottom: 4,
+                    }}>
                       Phase {num}
                     </p>
                     <h2 style={{ fontSize: 22, fontWeight: 800, color: "#ffffff", marginBottom: 2 }}>
@@ -763,20 +742,26 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
                       {subtitle}
                     </p>
                   </div>
-                  {num === assignedPhase && (
+                  {num === assignedPhase && !phaseComplete && (
                     <span style={{
-                      display: "inline-flex",
-                      alignItems: "center",
+                      display: "inline-flex", alignItems: "center",
                       backgroundColor: "rgba(99,102,241,0.12)",
                       border: "1px solid rgba(99,102,241,0.25)",
-                      color: "var(--primary)",
-                      fontSize: 11,
-                      fontWeight: 700,
-                      padding: "4px 10px",
-                      borderRadius: 999,
-                      whiteSpace: "nowrap",
+                      color: "var(--primary)", fontSize: 11, fontWeight: 700,
+                      padding: "4px 10px", borderRadius: 999, whiteSpace: "nowrap",
                     }}>
                       Your starting point
+                    </span>
+                  )}
+                  {phaseComplete && (
+                    <span style={{
+                      display: "inline-flex", alignItems: "center", gap: 4,
+                      backgroundColor: "rgba(34,197,94,0.12)",
+                      border: "1px solid rgba(34,197,94,0.3)",
+                      color: "#22c55e", fontSize: 11, fontWeight: 700,
+                      padding: "4px 10px", borderRadius: 999, whiteSpace: "nowrap",
+                    }}>
+                      🎉 Phase Complete
                     </span>
                   )}
                 </div>
@@ -796,6 +781,7 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
                       resource={r}
                       completed={!!completed[r.id]}
                       rating={ratings[r.id] ?? 0}
+                      aggRating={aggRatings[r.id]}
                       locked={isLocked}
                       onComplete={() => handleComplete(r.id)}
                       onRate={(n) => handleRate(r.id, n)}
@@ -803,6 +789,9 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
                   ))}
                 </div>
               )}
+
+              {/* Phase complete banner */}
+              {phaseComplete && <PhaseCompleteBanner />}
             </div>
           );
         })}
