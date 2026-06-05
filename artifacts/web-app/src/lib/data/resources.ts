@@ -38,7 +38,7 @@ export const VIDEOS: Resource[] = [
   { id: "yt-replit-agent", title: "How to Build Apps with Replit AI Agent", description: "Step-by-step course covering how to set up Replit and build full apps using its AI agent.", url: "https://www.youtube.com/watch?v=DaXQ5L7r7Lg", type: "video", level: "beginner", categories: ["ai-tools", "deployment"], meta: "YouTube · beginner" },
 ];
 
-type StackGroup = "Deployment" | "Authentication" | "Database" | "UX Design" | "Vibe Coding" | "Product Ideas";
+type StackGroup = "Deployment" | "Authentication" | "Database" | "UX Design" | "Vibe Coding" | "Product Ideas" | "No-Code";
 
 export const STACK: (Resource & { group: StackGroup })[] = [
   { id: "st-vercel", title: "Vercel", description: "Zero-config deploys for Next.js & friends. The default for most vibe-coded apps.", url: "https://vercel.com", type: "tool", level: "beginner", categories: ["deployment"], group: "Deployment" },
@@ -54,6 +54,18 @@ export const STACK: (Resource & { group: StackGroup })[] = [
   { id: "st-codex", title: "Codex", description: "OpenAI's coding agent. Strong at large refactors and long-context work.", url: "https://openai.com/codex", type: "tool", level: "intermediate", categories: ["ai-tools"], group: "Vibe Coding" },
   { id: "st-replit", title: "Replit", description: "Browser-based agent + hosting. Lowest friction from idea to live URL.", url: "https://replit.com", type: "tool", level: "beginner", categories: ["ai-tools", "deployment"], group: "Vibe Coding" },
   { id: "st-ideabrowser", title: "Ideabrowser", description: "Curated, validated startup ideas with market signal. Fuel for what to build next.", url: "https://ideabrowser.com", type: "tool", level: "beginner", categories: ["product"], group: "Product Ideas" },
+  // ── AI Builders ───────────────────────────────────────────────────
+  { id: "st-bolt", title: "bolt.new", description: "Prompt your way to a full-stack app. Powered by AI, runs in the browser instantly.", url: "https://bolt.new", type: "tool", level: "beginner", categories: ["ai-tools", "deployment"], group: "Vibe Coding" },
+  { id: "st-lovable", title: "Lovable", description: "Turn ideas into real products with AI. Design, build, and ship without a team.", url: "https://lovable.dev", type: "tool", level: "beginner", categories: ["ai-tools", "product"], group: "Vibe Coding" },
+  { id: "st-v0", title: "v0", description: "Generate UI components from a prompt using Vercel's AI. Paste into any React app.", url: "https://v0.dev", type: "tool", level: "intermediate", categories: ["ux-design", "ai-tools"], group: "Vibe Coding" },
+  // ── No-Code ───────────────────────────────────────────────────────
+  { id: "st-bubble", title: "Bubble", description: "Build full-stack web apps without code. Includes database, logic, and UI in one platform.", url: "https://bubble.io", type: "tool", level: "beginner", categories: ["deployment", "product"], group: "No-Code" },
+  { id: "st-softr", title: "Softr", description: "Turn your Airtable or Google Sheets into a web app or client portal in minutes.", url: "https://softr.io", type: "tool", level: "beginner", categories: ["deployment", "product"], group: "No-Code" },
+  { id: "st-glide", title: "Glide", description: "Build mobile and web apps from a spreadsheet. No coding required.", url: "https://glideapps.com", type: "tool", level: "beginner", categories: ["deployment", "product"], group: "No-Code" },
+  // ── UX / Design ───────────────────────────────────────────────────
+  { id: "st-shadcn", title: "shadcn/ui", description: "Beautifully designed components you can copy and paste into your app. Built on Radix UI and Tailwind.", url: "https://ui.shadcn.com", type: "tool", level: "intermediate", categories: ["ux-design"], group: "UX Design" },
+  { id: "st-ui8", title: "ui8.net", description: "Premium UI kits, templates, and design assets for building polished products faster.", url: "https://ui8.net", type: "tool", level: "beginner", categories: ["ux-design"], group: "UX Design" },
+  { id: "st-spline", title: "Spline", description: "Design and ship interactive 3D experiences for the web. No 3D experience required.", url: "https://spline.design", type: "tool", level: "intermediate", categories: ["ux-design"], group: "UX Design" },
 ];
 
 export const ALL_RESOURCES: Resource[] = [...COWORK_SKILLS, ...VIDEOS, ...STACK];

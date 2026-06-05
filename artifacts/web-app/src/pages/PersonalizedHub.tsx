@@ -164,6 +164,13 @@ const PHASE_MAP: Record<string, PhaseNum> = {
   "st-netlify": 1,
   "st-dribbble": 1,
   "st-ideabrowser": 1,
+  // Phase 1 — new tools
+  "st-bolt": 1,
+  "st-lovable": 1,
+  "st-bubble": 1,
+  "st-softr": 1,
+  "st-glide": 1,
+  "st-ui8": 1,
   // Phase 2 — Stack Up
   "yt-claude-code-4hr": 2,
   "yt-neon-postgres": 2,
@@ -174,6 +181,10 @@ const PHASE_MAP: Record<string, PhaseNum> = {
   "st-cloudflare": 2,
   "st-21st": 2,
   "st-mobbin": 2,
+  // Phase 2 — new tools
+  "st-shadcn": 2,
+  "st-spline": 2,
+  "st-v0": 2,
   // Phase 3 — Ship It
   "yt-advanced-claude-code": 3,
   "cs-mcp-assistant": 3,
@@ -246,7 +257,12 @@ function buildHubResources(): HubResource[] {
     ...r,
     phase: (PHASE_MAP[r.id] ?? levelToPhase(r.level)) as PhaseNum,
   }));
-  return [...mapped, ...PLACEHOLDERS];
+  const all = [...mapped, ...PLACEHOLDERS];
+  const p1 = all.filter((r) => r.phase === 1).length;
+  const p2 = all.filter((r) => r.phase === 2).length;
+  const p3 = all.filter((r) => r.phase === 3).length;
+  console.log(`[buildHubResources] total=${all.length} | Phase1=${p1} Phase2=${p2} Phase3=${p3}`);
+  return all;
 }
 
 function filterPhaseResources(
