@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useUser } from "@clerk/react";
 import { toast } from "sonner";
 import { nanoid } from "nanoid";
 import Layout from "@/components/Layout";
@@ -35,6 +36,7 @@ const pillStyle: React.CSSProperties = {
 
 export default function Assessment() {
   const navigate = useNavigate();
+  const { isSignedIn } = useUser();
   const [step, setStep] = useState<number>(-1);
   const [answers, setAnswers] = useState<Answers>({});
   const [submitting, setSubmitting] = useState(false);
@@ -46,21 +48,31 @@ export default function Assessment() {
     // Always save locally as a safety net
     localStorage.setItem("vibelab:result", JSON.stringify(result));
 
-    try {
-      const shareId = nanoid(8);
-      await sql`
-        INSERT INTO assessment_results (share_id, score, category_scores, answers)
-        VALUES (
-          ${shareId},
-          ${result.overall},
-          ${JSON.stringify(result.scores)},
-          ${JSON.stringify(finalAnswers)}
-        )
-      `;
-      navigate(`/results/${shareId}`);
-    } catch (err) {
-      console.error("Neon save failed:", err);
-      toast.error("Saved locally — share link unavailable");
+    if (isSignedIn) {
+      // Signed in → save to Neon and get a real share link
+      try {
+        const shareId = nanoid(8);
+        await sql`
+          INSERT INTO assessment_results (share_id, score, category_scores, answers)
+          VALUES (
+            ${shareId},
+            ${result.overall},
+            ${JSON.stringify(result.scores)},
+            ${JSON.stringify(finalAnswers)}
+          )
+        `;
+        navigate(`/results/${shareId}`);
+      } catch (err) {
+        console.error("Neon save failed:", err);
+        toast.error("Saved locally — share link unavailable");
+        navigate("/results/local");
+      }
+    } else {
+      // Not signed in → store pending result for auto-save after sign-up
+      sessionStorage.setItem(
+        "vibelab:pending_result",
+        JSON.stringify({ answers: finalAnswers, score: result.overall, scores: result.scores }),
+      );
       navigate("/results/local");
     }
   }

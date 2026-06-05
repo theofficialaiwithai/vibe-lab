@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useUser, SignInButton } from "@clerk/react";
+import { toast } from "sonner";
+import { nanoid } from "nanoid";
 import {
   RadarChart,
   PolarGrid,
@@ -155,6 +158,7 @@ function ViewResourcesButton() {
 // ── Results body (shared between local and remote) ────────────────
 function ResultsBody({ result, token }: { result: Result; token: string }) {
   const navigate = useNavigate();
+  const { isSignedIn } = useUser();
   const stack = STACKS[result.level as Level];
   const radarData = result.scores.map((s) => ({ subject: s.short, score: s.score, fullMark: 100 }));
   const isShareable = isShareId(token);
@@ -163,13 +167,13 @@ function ResultsBody({ result, token }: { result: Result; token: string }) {
   const [hasProfile, setHasProfile] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (!isShareable) { setHasProfile(false); return; }
+    if (!isShareable || !isSignedIn) { setHasProfile(false); return; }
     let cancelled = false;
     sql`SELECT id FROM user_profiles WHERE share_id = ${token} LIMIT 1`
       .then((rows) => { if (!cancelled) setHasProfile(rows.length > 0); })
       .catch(() => { if (!cancelled) setHasProfile(false); });
     return () => { cancelled = true; };
-  }, [token, isShareable]);
+  }, [token, isShareable, isSignedIn]);
 
   function goToPersonalize() {
     if (isShareable) sessionStorage.setItem("vibelab:share_id", token);
@@ -346,11 +350,31 @@ function ResultsBody({ result, token }: { result: Result; token: string }) {
                 margin: "0 auto 28px",
               }}
             >
-              Answer 4 quick questions and we'll build your personalized path to becoming a Vibe Architect.
+              {isSignedIn
+                ? "Answer 4 quick questions and we'll build your personalized path to becoming a Vibe Architect."
+                : "Create a free account to save your results and get your personalized hub."}
             </p>
 
-            {hasProfile === null ? (
-              // Still checking — show a placeholder button
+            {!isSignedIn ? (
+              // Not signed in — show sign-up prompt
+              <SignInButton mode="modal">
+                <button
+                  style={{
+                    backgroundColor: "var(--primary)",
+                    color: "#ffffff",
+                    fontWeight: 700,
+                    fontSize: 16,
+                    padding: "14px 32px",
+                    borderRadius: 10,
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  Create free account →
+                </button>
+              </SignInButton>
+            ) : hasProfile === null ? (
+              // Signed in — still checking for existing profile
               <div
                 style={{
                   display: "inline-block",
@@ -537,9 +561,12 @@ export default function Results() {
 
 function LocalResult() {
   const navigate = useNavigate();
+  const { isLoaded: authLoaded, isSignedIn } = useUser();
   const [result, setResult] = useState<Result | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
 
+  // Load result from localStorage
   useEffect(() => {
     try {
       const raw = localStorage.getItem("vibelab:result");
@@ -550,6 +577,35 @@ function LocalResult() {
     setLoaded(true);
   }, []);
 
+  // After sign-in, auto-save any pending result to Neon and redirect to the real share URL
+  useEffect(() => {
+    if (!authLoaded || !isSignedIn) return;
+    const pending = sessionStorage.getItem("vibelab:pending_result");
+    if (!pending) return;
+    setSaving(true);
+    void (async () => {
+      try {
+        const { answers, score, scores } = JSON.parse(pending) as {
+          answers: Record<string, unknown>;
+          score: number;
+          scores: unknown;
+        };
+        const shareId = nanoid(8);
+        await sql`
+          INSERT INTO assessment_results (share_id, score, category_scores, answers)
+          VALUES (${shareId}, ${score}, ${JSON.stringify(scores)}, ${JSON.stringify(answers)})
+        `;
+        sessionStorage.removeItem("vibelab:pending_result");
+        navigate(`/results/${shareId}`, { replace: true });
+      } catch (err) {
+        console.error("Auto-save failed:", err);
+        setSaving(false);
+        toast.error("Couldn't save your results — please try again");
+      }
+    })();
+  }, [authLoaded, isSignedIn, navigate]);
+
+  if (saving) return <Spinner />;
   if (!loaded) return null;
 
   if (!result) {

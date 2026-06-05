@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useUser, SignInButton } from "@clerk/react";
 import Layout from "@/components/Layout";
 import { sql } from "@/lib/db";
 
@@ -56,6 +57,7 @@ const centered: React.CSSProperties = {
 
 export default function Personalize() {
   const navigate = useNavigate();
+  const { isLoaded, isSignedIn } = useUser();
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
   const [building, setBuilding] = useState(false);
@@ -121,6 +123,56 @@ export default function Personalize() {
       setStep((s) => s - 1);
       setVisible(true);
     }, 200);
+  }
+
+  // ── Auth gate ─────────────────────────────────────────────────────
+  if (!isLoaded) {
+    return (
+      <Layout>
+        <div style={centered}>
+          <div style={{
+            width: 32, height: 32, borderRadius: "50%",
+            border: "3px solid var(--border)", borderTopColor: "var(--primary)",
+            animation: "spin 0.8s linear infinite",
+          }} />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!isSignedIn) {
+    return (
+      <Layout>
+        <div style={centered}>
+          <div style={{ maxWidth: 480, textAlign: "center" }}>
+            <div style={{ fontSize: 40, marginBottom: 20 }}>🔒</div>
+            <h2 style={{ fontSize: 26, fontWeight: 800, color: "#ffffff", marginBottom: 12, letterSpacing: "-0.01em" }}>
+              Sign in to personalize your hub
+            </h2>
+            <p style={{ color: "var(--foreground)", opacity: 0.6, fontSize: 16, lineHeight: 1.65, marginBottom: 32, maxWidth: 360, margin: "0 auto 32px" }}>
+              Create a free account to answer 4 quick questions and build your personalized learning path.
+            </p>
+            <SignInButton mode="modal">
+              <button
+                style={{
+                  backgroundColor: "var(--primary)",
+                  color: "#ffffff",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  padding: "14px 32px",
+                  borderRadius: 10,
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Create free account →
+              </button>
+            </SignInButton>
+          </div>
+        </div>
+      </Layout>
+    );
   }
 
   // ── Building state ────────────────────────────────────────────────

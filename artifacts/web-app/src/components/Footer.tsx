@@ -30,21 +30,6 @@ export default function Footer() {
         </span>
 
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <a
-            href="https://github.com/theofficialaiwithai/cowork-skills"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              fontFamily: "monospace",
-              fontSize: 12,
-              color: "var(--muted)",
-              textDecoration: "none",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--foreground)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--muted)")}
-          >
-            GitHub
-          </a>
           <Link
             to="/assessment"
             style={{

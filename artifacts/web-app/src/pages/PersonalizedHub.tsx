@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useUser, SignInButton } from "@clerk/react";
 import { toast } from "sonner";
 import { ExternalLink, ChevronDown, ChevronUp, Lock } from "lucide-react";
 import Layout from "@/components/Layout";
@@ -470,6 +471,7 @@ function PhaseCompleteBanner() {
 // ── Main component ────────────────────────────────────────────────
 export default function PersonalizedHub({ shareId }: { shareId: string }) {
   const navigate = useNavigate();
+  const { isLoaded, isSignedIn } = useUser();
 
   const [loading, setLoading] = useState(true);
   const [assessment, setAssessment] = useState<AssessmentData | null>(null);
@@ -483,6 +485,10 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
 
   // ── Load all data on mount ──────────────────────────────────────
   useEffect(() => {
+    if (!isLoaded || !isSignedIn) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
 
     async function load() {
@@ -545,7 +551,7 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
 
     void load();
     return () => { cancelled = true; };
-  }, [shareId, navigate]);
+  }, [shareId, navigate, isLoaded, isSignedIn]);
 
   // ── Mark complete (optimistic + toast on error) ─────────────────
   function handleComplete(resourceId: string) {
@@ -594,7 +600,47 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
     });
   }
 
-  if (loading) return <Spinner />;
+  if (!isLoaded || loading) return <Spinner />;
+
+  if (!isSignedIn) {
+    return (
+      <Layout>
+        <div style={{
+          minHeight: "calc(100vh - 56px)",
+          display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center",
+          textAlign: "center", padding: "40px 24px",
+        }}>
+          <div style={{ maxWidth: 480 }}>
+            <div style={{ fontSize: 40, marginBottom: 20 }}>🔒</div>
+            <h2 style={{ fontSize: 26, fontWeight: 800, color: "#ffffff", marginBottom: 12, letterSpacing: "-0.01em" }}>
+              Sign in to view your hub
+            </h2>
+            <p style={{ color: "var(--foreground)", opacity: 0.6, fontSize: 16, lineHeight: 1.65, marginBottom: 32 }}>
+              Your personalized learning hub is waiting. Create a free account or sign in to continue.
+            </p>
+            <SignInButton mode="modal">
+              <button
+                style={{
+                  backgroundColor: "var(--primary)",
+                  color: "#ffffff",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  padding: "14px 32px",
+                  borderRadius: 10,
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Sign in to continue →
+              </button>
+            </SignInButton>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   if (!profile) return <Spinner />; // redirect in-flight
 
   // ── Derived values ───────────────────────────────────────────────
