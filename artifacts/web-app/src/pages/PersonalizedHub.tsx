@@ -434,7 +434,13 @@ function PhaseProgress({ completed, total }: { completed: number; total: number 
 }
 
 // ── Phase complete banner ─────────────────────────────────────────
-function PhaseCompleteBanner({ onStartChallenge }: { onStartChallenge: () => void }) {
+function PhaseCompleteBanner({
+  onStartChallenge,
+  challengeStarted,
+}: {
+  onStartChallenge: () => void;
+  challengeStarted: boolean;
+}) {
   return (
     <div style={{
       marginTop: 32, borderRadius: 16, padding: 2,
@@ -442,20 +448,26 @@ function PhaseCompleteBanner({ onStartChallenge }: { onStartChallenge: () => voi
     }}>
       <div style={{ backgroundColor: "var(--background)", borderRadius: 14, padding: "28px 32px", textAlign: "center" }}>
         <div style={{ fontSize: 36, marginBottom: 10 }}>🎉</div>
-        <h3 style={{ fontSize: 20, fontWeight: 800, color: "#ffffff", marginBottom: 8 }}>Phase Complete!</h3>
+        <h3 style={{ fontSize: 20, fontWeight: 800, color: "#ffffff", marginBottom: 8 }}>
+          Resources Complete!
+        </h3>
         <p style={{ fontSize: 14, color: "var(--foreground)", opacity: 0.6, marginBottom: 20, lineHeight: 1.6 }}>
           You've worked through everything in this phase. Ready to put it into practice?
         </p>
         <button
-          onClick={onStartChallenge}
+          type="button"
+          onClick={challengeStarted ? undefined : onStartChallenge}
+          disabled={challengeStarted}
           style={{
             display: "inline-flex", alignItems: "center",
             backgroundColor: "#22c55e", color: "#ffffff",
             fontWeight: 700, fontSize: 14, padding: "12px 24px",
-            borderRadius: 9, border: "none", cursor: "pointer",
+            borderRadius: 9, border: "none",
+            cursor: challengeStarted ? "default" : "pointer",
+            opacity: challengeStarted ? 0.75 : 1,
           }}
         >
-          Ready for your Build Challenge? →
+          {challengeStarted ? "Build Challenge below ↓" : "Ready for your Build Challenge? →"}
         </button>
       </div>
     </div>
@@ -1252,20 +1264,29 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
                 </div>
               )}
 
-              {/* Phase complete banner — only if resources done but challenge not yet submitted */}
-              {phaseComplete && !challengeSubmitted && !showChallenge && (
+              {/* Phase complete banner — stays visible after challenge is started */}
+              {phaseComplete && !challengeSubmitted && (
                 <PhaseCompleteBanner
+                  challengeStarted={showChallenge}
                   onStartChallenge={() => {
                     setShowChallenge(true);
-                    setTimeout(() => {
-                      document.getElementById("build-challenge")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }, 80);
+                    // Wait for React to commit + browser to paint before scrolling
+                    requestAnimationFrame(() =>
+                      requestAnimationFrame(() => {
+                        document.getElementById("build-challenge")?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "start",
+                        });
+                      })
+                    );
                   }}
                 />
               )}
 
-              {/* Build Challenge section — shown when triggered, persists through success step */}
-              {phaseComplete && !challengeSubmitted && showChallenge && (
+              {/* Build Challenge section — rendered whenever triggered; intentionally NOT
+                  gated on !challengeSubmitted so the success step can finish before the
+                  ChallengeDoneBanner replaces it on the next load */}
+              {showChallenge && !challengeSubmitted && (
                 <BuildChallenge
                   phase={num}
                   shareId={shareId}
@@ -1277,8 +1298,9 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
                 />
               )}
 
-              {/* Already-submitted banner (for returning users who see a completed phase) */}
-              {challengeSubmitted && <ChallengeDoneBanner phase={num} />}
+              {/* Success step is inside BuildChallenge; once it unmounts (challengeSubmitted
+                  becomes true on next load), show the persistent done banner instead */}
+              {challengeSubmitted && !showChallenge && <ChallengeDoneBanner phase={num} />}
             </div>
           );
         })}
