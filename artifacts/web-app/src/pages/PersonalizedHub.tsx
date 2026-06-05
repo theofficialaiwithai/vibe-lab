@@ -34,6 +34,13 @@ type AggRating = { avg: number; total: number };
 type ChallengeStep = "choose" | "confirm" | "success";
 type ChallengeMode = "usecases" | "custom";
 
+// ── Level metadata ─────────────────────────────────────────────────
+const LEVEL_BADGES: Record<number, { title: string; emoji: string; nextTitle?: string; nextEmoji?: string }> = {
+  1: { title: "Vibe Starter",   emoji: "⚡", nextTitle: "Vibe Builder",   nextEmoji: "🔥" },
+  2: { title: "Vibe Builder",   emoji: "🔥", nextTitle: "Vibe Architect", nextEmoji: "🏆" },
+  3: { title: "Vibe Architect", emoji: "🏆" },
+};
+
 // ── Phase metadata ────────────────────────────────────────────────
 const PHASES: { num: PhaseNum; title: string; subtitle: string }[] = [
   { num: 1, title: "Foundation", subtitle: "Get your first thing live" },
@@ -41,35 +48,89 @@ const PHASES: { num: PhaseNum; title: string; subtitle: string }[] = [
   { num: 3, title: "Ship It",    subtitle: "Product thinking, validate, launch" },
 ];
 
-// ── Build Challenge use cases per phase ───────────────────────────
-const BUILD_CASES: Record<PhaseNum, string[]> = {
-  1: [
-    "Build a personal portfolio site",
-    "Create a landing page for a product idea",
-    "Build a simple lead capture form with email notification",
-    "Set up an automated social post scheduler",
-    "Build a basic AI chatbot for a topic you know well",
-    "Create a newsletter signup page with a welcome email",
-  ],
-  2: [
-    "Build a full CRUD app with a database",
-    "Create a client dashboard with login and data",
-    "Build a multi-step form with results",
-    "Set up a Zapier automation that saves data to a spreadsheet",
-    "Build an internal tool for a repetitive task you do",
-    "Create an API that returns personalized recommendations",
-  ],
-  3: [
-    "Launch a product with a waitlist and onboarding flow",
-    "Build and publish a Cowork plugin",
-    "Ship a SaaS with Stripe payment integration",
-    "Create a content pipeline that runs automatically",
-    "Build a multi-agent workflow that replaces a manual process",
-    "Launch a productized service with a booking and delivery flow",
-  ],
+// ── Build Challenge use cases per level × phase ───────────────────
+const BUILD_CASES: Record<number, Record<PhaseNum, string[]>> = {
+  1: {
+    1: [
+      "Build a personal portfolio site",
+      "Create a landing page for a product idea",
+      "Build a simple lead capture form with email notification",
+      "Set up an automated social post scheduler",
+      "Build a basic AI chatbot for a topic you know well",
+      "Create a newsletter signup page with a welcome email",
+    ],
+    2: [
+      "Build a full CRUD app with a database",
+      "Create a client dashboard with login and data",
+      "Build a multi-step form with results",
+      "Set up a Zapier automation that saves data to a spreadsheet",
+      "Build an internal tool for a repetitive task you do",
+      "Create an API that returns personalized recommendations",
+    ],
+    3: [
+      "Launch a product with a waitlist and onboarding flow",
+      "Build and publish a Cowork plugin",
+      "Ship a SaaS with Stripe payment integration",
+      "Create a content pipeline that runs automatically",
+      "Build a multi-agent workflow that replaces a manual process",
+      "Launch a productized service with a booking and delivery flow",
+    ],
+  },
+  2: {
+    1: [
+      "Add authentication and a database to an existing project",
+      "Build a CRUD app with real persistent storage",
+      "Create a REST API with Express, Hono, or Fastify",
+      "Add a Stripe payment flow to a landing page",
+      "Build a dashboard that reads from a live database",
+      "Migrate an app from local state to a serverless database",
+    ],
+    2: [
+      "Build a multi-step form with email notifications and saved results",
+      "Create a client portal with row-level data access",
+      "Set up a full CI/CD pipeline from commit to production",
+      "Build a webhook-driven automation with n8n or Make",
+      "Create an internal admin tool for managing users or data",
+      "Build a real-time feature using Supabase Realtime or Pusher",
+    ],
+    3: [
+      "Ship a SaaS with Stripe subscriptions and usage limits",
+      "Build a content management system for a real client",
+      "Launch a product with analytics and error monitoring wired up",
+      "Create a full API with authentication and rate limiting",
+      "Build and deploy a complete multi-step onboarding flow",
+      "Ship a production app with a custom domain and <500ms response times",
+    ],
+  },
+  3: {
+    1: [
+      "Build an LLM-powered tool that replaces a manual workflow",
+      "Create a custom MCP server that extends Claude Code",
+      "Build an autonomous agent with memory and tool use",
+      "Design and ship a production-grade RAG pipeline",
+      "Build an AI API that other developers can integrate with",
+      "Create a multi-agent system using Claude Code sub-agents",
+    ],
+    2: [
+      "Scale an existing app to handle 10k+ concurrent users",
+      "Build an event-driven microservices architecture",
+      "Create a real-time collaboration feature using WebSockets",
+      "Design and implement a monitoring stack with alerting",
+      "Build a multi-tenant platform with isolated namespaces",
+      "Create a developer-facing API with documentation and rate limiting",
+    ],
+    3: [
+      "Productize an AI workflow and charge for it",
+      "Build and launch a developer tool with a public API",
+      "Create a system that generates revenue without your involvement",
+      "Design an AI agent that manages a business process end-to-end",
+      "Build, launch, and get your first paying user",
+      "Write and publish a technical case study of something you shipped",
+    ],
+  },
 };
 
-// ── Deterministic confetti (no Math.random in render) ─────────────
+// ── Deterministic confetti (phase challenge) ──────────────────────
 const CONFETTI_COLORS = ["#6366f1", "#f59e0b", "#22c55e", "#f87171", "#a78bfa", "#34d399"];
 const CONFETTI_PIECES = Array.from({ length: 32 }, (_, i) => ({
   id: i,
@@ -79,6 +140,17 @@ const CONFETTI_PIECES = Array.from({ length: 32 }, (_, i) => ({
   duration: `${0.65 + (i * 0.035) % 0.55}s`,
   size: 5 + (i % 5),
   rot: i % 2 === 0 ? "360deg" : "-360deg",
+}));
+
+// ── Deterministic confetti (graduation — more pieces, longer fall) ─
+const GRAD_CONFETTI = Array.from({ length: 64 }, (_, i) => ({
+  id: i,
+  color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+  left: `${(i * 1.6) % 100}%`,
+  delay: `${(i * 0.06) % 1.6}s`,
+  duration: `${1.4 + (i * 0.04) % 1.0}s`,
+  size: 6 + (i % 9),
+  rot: i % 2 === 0 ? "720deg" : "-720deg",
 }));
 
 // ── Resource → phase mapping ──────────────────────────────────────
@@ -165,6 +237,13 @@ function levelToPhase(level: Level): PhaseNum {
   return 3;
 }
 
+/** Maps a resource's difficulty level to a hub level (1/2/3). */
+function resourceHubLevel(r: Resource): number {
+  if (r.level === "beginner") return 1;
+  if (r.level === "intermediate") return 2;
+  return 3;
+}
+
 function derivePhase(score: number, currentStatus: string): PhaseNum {
   if (
     score > 70 ||
@@ -178,18 +257,16 @@ function derivePhase(score: number, currentStatus: string): PhaseNum {
   return 1;
 }
 
-function getLevelInfo(score: number): { label: string; emoji: string } {
-  if (score < 40) return { label: "Vibe Starter",   emoji: "🌱" };
-  if (score < 75) return { label: "Vibe Builder",   emoji: "⚡" };
-  return               { label: "Vibe Architect", emoji: "🚀" };
-}
-
-function buildHubResources(): HubResource[] {
-  const mapped = ALL_RESOURCES.map((r) => ({
-    ...r,
-    phase: (PHASE_MAP[r.id] ?? levelToPhase(r.level)) as PhaseNum,
-  }));
-  return [...mapped, ...PLACEHOLDERS];
+/** Returns all hub resources for a given hub level, each annotated with a phase. */
+function buildHubResources(hubLevel: number): HubResource[] {
+  const mapped = ALL_RESOURCES
+    .filter((r) => resourceHubLevel(r) === hubLevel)
+    .map((r) => ({
+      ...r,
+      phase: (PHASE_MAP[r.id] ?? levelToPhase(r.level)) as PhaseNum,
+    }));
+  const levelPlaceholders = PLACEHOLDERS.filter((p) => resourceHubLevel(p) === hubLevel);
+  return [...mapped, ...levelPlaceholders];
 }
 
 function filterPhaseResources(
@@ -474,7 +551,7 @@ function PhaseCompleteBanner({
   );
 }
 
-// ── Confetti animation ────────────────────────────────────────────
+// ── Phase challenge confetti ──────────────────────────────────────
 function Confetti() {
   return (
     <div style={{ position: "relative", height: 60, overflow: "hidden", pointerEvents: "none", marginBottom: 8 }}>
@@ -492,6 +569,30 @@ function Confetti() {
           borderRadius: p.id % 4 === 0 ? "50%" : 2,
           "--r": p.rot,
           animation: `cfFall ${p.duration} ${p.delay} ease-in both`,
+        } as React.CSSProperties} />
+      ))}
+    </div>
+  );
+}
+
+// ── Graduation full-screen confetti ──────────────────────────────
+function GraduationConfetti() {
+  return (
+    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 999, overflow: "hidden" }}>
+      <style>{`
+        @keyframes gradFall {
+          0%   { transform: translateY(-12px) rotate(0deg);   opacity: 1; }
+          100% { transform: translateY(110vh) rotate(var(--r)); opacity: 0.2; }
+        }
+      `}</style>
+      {GRAD_CONFETTI.map((p) => (
+        <div key={p.id} style={{
+          position: "absolute", top: 0, left: p.left,
+          width: p.size, height: p.size,
+          backgroundColor: p.color,
+          borderRadius: p.id % 4 === 0 ? "50%" : 2,
+          "--r": p.rot,
+          animation: `gradFall ${p.duration} ${p.delay} ease-in forwards`,
         } as React.CSSProperties} />
       ))}
     </div>
@@ -548,11 +649,18 @@ function UseCaseCard({ label, selected, onClick }: { label: string; selected: bo
 }
 
 // ── Build Challenge component ─────────────────────────────────────
-function BuildChallenge({ phase, shareId, score, onComplete }: {
+function BuildChallenge({
+  phase,
+  shareId,
+  currentLevel,
+  onComplete,
+  onGraduate,
+}: {
   phase: PhaseNum;
   shareId: string;
-  score: number;
+  currentLevel: number;
   onComplete: (newUnlocked: PhaseNum) => void;
+  onGraduate: (newLevel: number | null) => void;
 }) {
   const [mode, setMode] = useState<ChallengeMode | null>(null);
   const [selectedCase, setSelectedCase] = useState<string | null>(null);
@@ -565,28 +673,51 @@ function BuildChallenge({ phase, shareId, score, onComplete }: {
   const challengeData = selectedCase ?? customText;
   const canContinue = mode === "usecases" ? !!selectedCase : customText.length >= 20;
 
+  // Use cases for this level + phase
+  const levelCases = BUILD_CASES[currentLevel]?.[phase] ?? BUILD_CASES[1][phase];
+
   async function handleBuildItClick() {
     if (!canContinue) return;
     setSubmitting(true);
-    const levelNum = score < 40 ? 1 : score < 75 ? 2 : 3;
     const useCase = mode === "usecases" ? challengeData : null;
     const customDesc = mode === "custom" ? challengeData : null;
     const newPhase = isLastPhase ? (phase as PhaseNum) : nextPhase;
+
     try {
-      await Promise.all([
+      const updates: Promise<unknown>[] = [
         sql`
           INSERT INTO user_build_projects (share_id, level, phase, use_case, custom_description)
-          VALUES (${shareId}, ${levelNum}, ${phase}, ${useCase}, ${customDesc})
+          VALUES (${shareId}, ${currentLevel}, ${phase}, ${useCase}, ${customDesc})
           ON CONFLICT (share_id, level, phase) DO UPDATE
             SET use_case = ${useCase}, custom_description = ${customDesc}
         `,
-        sql`
+      ];
+
+      if (isLastPhase) {
+        // Graduation: bump level (max 3), reset phase to 1
+        updates.push(sql`
+          UPDATE user_profiles
+          SET current_level = CASE WHEN current_level < 3 THEN current_level + 1 ELSE current_level END,
+              current_phase  = CASE WHEN current_level < 3 THEN 1 ELSE current_phase END
+          WHERE share_id = ${shareId}
+        `);
+      } else {
+        updates.push(sql`
           UPDATE user_profiles
           SET current_phase = GREATEST(current_phase, ${newPhase})
           WHERE share_id = ${shareId}
-        `,
-      ]);
+        `);
+      }
+
+      await Promise.all(updates);
+
+      // Notify parent — order matters: onComplete first (updates completedChallengePhases),
+      // then onGraduate (may reset level state). React 18 batches both.
       onComplete(newPhase);
+      if (isLastPhase) {
+        const newLevel = currentLevel < 3 ? currentLevel + 1 : null;
+        onGraduate(newLevel);
+      }
       setStep("success");
     } catch (err) {
       console.error("Challenge submit failed:", err);
@@ -624,7 +755,7 @@ function BuildChallenge({ phase, shareId, score, onComplete }: {
           </h3>
           <p style={{ fontSize: 16, color: "var(--foreground)", opacity: 0.65, lineHeight: 1.65, marginBottom: 24 }}>
             {isLastPhase
-              ? "You've completed all three phases. You're officially a Vibe Architect. 🚀"
+              ? "You've finished all three phases. Your graduation moment is loading…"
               : `Phase ${nextPhase} is now unlocked. Click the tab above to begin.`}
           </p>
           {!isLastPhase && (
@@ -753,7 +884,7 @@ function BuildChallenge({ phase, shareId, score, onComplete }: {
               ← Back
             </button>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 10, marginBottom: 24 }}>
-              {BUILD_CASES[phase].map((uc) => (
+              {levelCases.map((uc) => (
                 <UseCaseCard key={uc} label={uc} selected={selectedCase === uc} onClick={() => setSelectedCase(uc)} />
               ))}
             </div>
@@ -828,11 +959,114 @@ function ChallengeDoneBanner({ phase }: { phase: PhaseNum }) {
         </p>
         <p style={{ fontSize: 13, color: "var(--foreground)", opacity: 0.55 }}>
           {isLast
-            ? "All phases complete — you're a Vibe Architect. 🚀"
+            ? "All phases complete at this level — you've graduated."
             : `Phase ${phase + 1} has been unlocked.`}
         </p>
       </div>
     </div>
+  );
+}
+
+// ── Full-screen graduation moment ─────────────────────────────────
+function GraduationScreen({
+  fromLevel,
+  shareId,
+  onEnterHub,
+}: {
+  fromLevel: number;
+  shareId: string;
+  onEnterHub: () => void;
+}) {
+  const isFinal = fromLevel === 3;
+  const fromBadge = LEVEL_BADGES[fromLevel];
+  const nextBadge = !isFinal ? LEVEL_BADGES[fromLevel + 1] : null;
+
+  function handleShare() {
+    const url = `${window.location.origin}/hub?id=${shareId}`;
+    void navigator.clipboard.writeText(url).then(() => {
+      toast.success("Hub URL copied to clipboard!");
+    });
+  }
+
+  return (
+    <>
+      <GraduationConfetti />
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 1000,
+        backgroundColor: "rgba(0,0,0,0.93)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "40px 24px",
+        backdropFilter: "blur(8px)",
+      }}>
+        <div style={{ maxWidth: 560, width: "100%", textAlign: "center", position: "relative", zIndex: 1001 }}>
+          {/* Animated badge */}
+          <div style={{
+            fontSize: 88, marginBottom: 28, lineHeight: 1,
+            display: "block",
+            animation: "gradBounce 0.65s cubic-bezier(0.34,1.56,0.64,1) both",
+          }}>
+            {isFinal ? "🏆" : nextBadge?.emoji}
+          </div>
+
+          <h1 style={{
+            fontSize: "clamp(28px, 6vw, 46px)", fontWeight: 800,
+            color: "#ffffff", marginBottom: 18, letterSpacing: "-0.02em", lineHeight: 1.15,
+          }}>
+            {isFinal
+              ? "You're a Vibe Architect. 🏆"
+              : `You've graduated from ${fromBadge.title}! 🎓`}
+          </h1>
+
+          <p style={{
+            fontSize: 18, color: "var(--foreground)", opacity: 0.7,
+            lineHeight: 1.65, marginBottom: 48, maxWidth: 440, margin: "0 auto 48px",
+          }}>
+            {isFinal
+              ? "You've completed the full Vibe Lab journey. You didn't just learn — you built."
+              : `You're now a ${nextBadge?.title}. Your new learning hub is ready.`}
+          </p>
+
+          {isFinal ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+              <button
+                onClick={handleShare}
+                style={{
+                  backgroundColor: "var(--primary)", color: "#ffffff",
+                  fontWeight: 700, fontSize: 17, padding: "16px 40px",
+                  borderRadius: 12, border: "none", cursor: "pointer",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                Share your journey 🔗
+              </button>
+              <p style={{ fontSize: 13, color: "var(--foreground)", opacity: 0.35, fontFamily: "monospace" }}>
+                Copies your hub URL to clipboard
+              </p>
+            </div>
+          ) : (
+            <button
+              onClick={onEnterHub}
+              style={{
+                backgroundColor: "var(--primary)", color: "#ffffff",
+                fontWeight: 700, fontSize: 17, padding: "16px 40px",
+                borderRadius: 12, border: "none", cursor: "pointer",
+                letterSpacing: "-0.01em",
+              }}
+            >
+              Enter {nextBadge?.title} Hub →
+            </button>
+          )}
+        </div>
+
+        <style>{`
+          @keyframes gradBounce {
+            0%   { transform: scale(0.2) rotate(-15deg); opacity: 0; }
+            60%  { transform: scale(1.12) rotate(4deg);  opacity: 1; }
+            100% { transform: scale(1)   rotate(0deg);   opacity: 1; }
+          }
+        `}</style>
+      </div>
+    </>
   );
 }
 
@@ -844,6 +1078,7 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
   const [loading, setLoading] = useState(true);
   const [assessment, setAssessment] = useState<AssessmentData | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [currentLevel, setCurrentLevel] = useState<number>(1);
   const [assignedPhase, setAssignedPhase] = useState<PhaseNum>(1);
   const [unlockedPhase, setUnlockedPhase] = useState<PhaseNum>(1);
   const [completedChallengePhases, setCompletedChallengePhases] = useState<Set<number>>(new Set());
@@ -855,6 +1090,10 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
   const [activePhase, setActivePhase] = useState<PhaseNum>(1);
   const [showChallenge, setShowChallenge] = useState(false);
   const [lockedTooltipPhase, setLockedTooltipPhase] = useState<PhaseNum | null>(null);
+
+  // Graduation state
+  const [showGraduation, setShowGraduation] = useState(false);
+  const [graduationFromLevel, setGraduationFromLevel] = useState<number>(1);
 
   // Reset challenge UI when switching phases
   useEffect(() => {
@@ -889,7 +1128,9 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
                      COUNT(*)::int AS total_ratings
               FROM resource_ratings
               GROUP BY resource_id`,
-          sql`SELECT phase FROM user_build_projects WHERE share_id = ${shareId}`,
+          sql`SELECT phase FROM user_build_projects WHERE share_id = ${shareId} AND level = (
+                SELECT current_level FROM user_profiles WHERE share_id = ${shareId} LIMIT 1
+              )`,
         ]);
 
         if (cancelled) return;
@@ -904,6 +1145,10 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
 
         if (a) setAssessment(a);
         setProfile(p);
+
+        // Hub level from profile
+        const hubLevel = Math.min(3, Math.max(1, p.current_level)) as number;
+        setCurrentLevel(hubLevel);
 
         // Completion map
         const cMap: Record<string, boolean> = {};
@@ -926,7 +1171,7 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
         }
         setAggRatings(aMap);
 
-        // Completed challenge phases
+        // Completed challenge phases for current level
         const cpSet = new Set<number>();
         for (const row of buildProjectRows) cpSet.add((row as { phase: number }).phase);
         setCompletedChallengePhases(cpSet);
@@ -987,6 +1232,24 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
     });
   }
 
+  // ── Graduation handler ──────────────────────────────────────────
+  function handleGraduate(newLevel: number | null) {
+    const fromLv = currentLevel;
+
+    if (newLevel !== null) {
+      // Update local state for the new level
+      setCurrentLevel(newLevel);
+      setUnlockedPhase(1 as PhaseNum);
+      setAssignedPhase(1 as PhaseNum);
+      setActivePhase(1 as PhaseNum);
+      setCompletedChallengePhases(new Set());
+      setShowChallenge(false);
+    }
+
+    setGraduationFromLevel(fromLv);
+    setShowGraduation(true);
+  }
+
   // ── Auth / loading guards ───────────────────────────────────────
   if (!isLoaded || loading) return <Spinner />;
 
@@ -1031,8 +1294,13 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
     .sort((a, b) => a.score - b.score)
     .slice(0, 2)
     .map((s) => s.id) as CategoryId[];
-  const levelInfo = getLevelInfo(score);
-  const ALL_HUB = buildHubResources();
+
+  const levelBadge = LEVEL_BADGES[currentLevel] ?? LEVEL_BADGES[1];
+  const ALL_HUB = buildHubResources(currentLevel);
+
+  // Overall journey progress: Phase N of 9
+  const journeyPhase = (currentLevel - 1) * 3 + activePhase;
+  const journeyPct = Math.round((journeyPhase / 9) * 100);
 
   const surface: React.CSSProperties = {
     backgroundColor: "var(--surface)",
@@ -1041,271 +1309,282 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
   };
 
   return (
-    <Layout>
-      <div style={{ maxWidth: 860, margin: "0 auto", padding: "48px 24px 100px" }}>
+    <>
+      {/* Graduation screen overlay */}
+      {showGraduation && (
+        <GraduationScreen
+          fromLevel={graduationFromLevel}
+          shareId={shareId}
+          onEnterHub={() => setShowGraduation(false)}
+        />
+      )}
 
-        {/* ── Header ── */}
-        <div style={{ marginBottom: 40 }}>
-          <div style={{ marginBottom: 12 }}>
-            <span style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              backgroundColor: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)",
-              color: "var(--primary)", fontSize: 12, fontWeight: 700,
-              padding: "4px 12px", borderRadius: 999, letterSpacing: "0.04em",
-            }}>
-              {levelInfo.emoji} {levelInfo.label}
-            </span>
-          </div>
-          <h1 style={{ fontSize: "clamp(28px, 5vw, 40px)", fontWeight: 800, color: "#ffffff", lineHeight: 1.15, marginBottom: 8 }}>
-            Your Personalized Hub
-          </h1>
-          <p style={{ fontSize: 16, color: "var(--foreground)", opacity: 0.55, marginBottom: 20 }}>
-            Curated for your goal:{" "}
-            <strong style={{ color: "var(--foreground)", opacity: 0.9 }}>{profile.main_goal}</strong>
-            {" · "}{profile.time_per_week}/week
-          </p>
+      <Layout>
+        <div style={{ maxWidth: 860, margin: "0 auto", padding: "48px 24px 100px" }}>
 
-          {/* Overall progress */}
-          {(() => {
-            const total = ALL_HUB.length;
-            const done = Object.values(completed).filter(Boolean).length;
-            return (
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ flex: 1, maxWidth: 320, height: 6, backgroundColor: "var(--border)", borderRadius: 3, overflow: "hidden" }}>
-                  <div style={{
-                    height: "100%", width: `${total === 0 ? 0 : (done / total) * 100}%`,
-                    backgroundColor: "var(--primary)", borderRadius: 3, transition: "width 0.4s",
-                  }} />
-                </div>
-                <span style={{ fontSize: 12, fontFamily: "monospace", color: "var(--foreground)", opacity: 0.45 }}>
-                  {done} resources completed
-                </span>
+          {/* ── Header ── */}
+          <div style={{ marginBottom: 40 }}>
+            {/* Level badge + level/phase indicator */}
+            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                backgroundColor: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)",
+                color: "var(--primary)", fontSize: 12, fontWeight: 700,
+                padding: "4px 12px", borderRadius: 999, letterSpacing: "0.04em",
+              }}>
+                {levelBadge.emoji} {levelBadge.title}
+              </span>
+              <span style={{
+                display: "inline-flex", alignItems: "center",
+                color: "var(--foreground)", opacity: 0.45,
+                fontSize: 12, fontFamily: "monospace", letterSpacing: "0.04em",
+              }}>
+                Level {currentLevel} · Phase {activePhase}
+              </span>
+            </div>
+
+            <h1 style={{ fontSize: "clamp(28px, 5vw, 40px)", fontWeight: 800, color: "#ffffff", lineHeight: 1.15, marginBottom: 8 }}>
+              Your Personalized Hub
+            </h1>
+            <p style={{ fontSize: 16, color: "var(--foreground)", opacity: 0.55, marginBottom: 20 }}>
+              Curated for your goal:{" "}
+              <strong style={{ color: "var(--foreground)", opacity: 0.9 }}>{profile.main_goal}</strong>
+              {" · "}{profile.time_per_week}/week
+            </p>
+
+            {/* Journey progress — "Phase N of 9" */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ flex: 1, maxWidth: 280, height: 5, backgroundColor: "var(--border)", borderRadius: 3, overflow: "hidden" }}>
+                <div style={{
+                  height: "100%", width: `${journeyPct}%`,
+                  backgroundColor: "var(--primary)", borderRadius: 3, transition: "width 0.5s ease",
+                }} />
               </div>
-            );
-          })()}
-        </div>
+              <span style={{ fontSize: 12, fontFamily: "monospace", color: "var(--foreground)", opacity: 0.4, whiteSpace: "nowrap" }}>
+                Phase {journeyPhase} of 9 in your journey
+              </span>
+            </div>
+          </div>
 
-        {/* ── Phase tabs ── */}
-        <div style={{ display: "flex", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
-          {PHASES.map(({ num, title, subtitle }) => {
-            const isActive = activePhase === num;
+          {/* ── Phase tabs ── */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
+            {PHASES.map(({ num, title, subtitle }) => {
+              const isActive = activePhase === num;
+              const isLocked = num > unlockedPhase;
+              const phaseResources = filterPhaseResources(ALL_HUB, num, profile, weakest);
+              const phaseCompleted = phaseResources.filter((r) => completed[r.id]).length;
+              const phaseComplete = phaseResources.length > 0 && phaseCompleted === phaseResources.length;
+              const challengeSubmitted = completedChallengePhases.has(num);
+
+              return (
+                <button
+                  key={num}
+                  onClick={() => {
+                    if (isLocked) {
+                      setLockedTooltipPhase(num);
+                    } else {
+                      setLockedTooltipPhase(null);
+                      setActivePhase(num);
+                    }
+                  }}
+                  style={{
+                    display: "flex", flexDirection: "column", alignItems: "flex-start",
+                    gap: 2, padding: "12px 18px", borderRadius: 12,
+                    border: isActive ? "1px solid rgba(99,102,241,0.6)" : isLocked ? "1px solid rgba(255,255,255,0.06)" : "1px solid var(--border)",
+                    backgroundColor: isActive ? "rgba(99,102,241,0.10)" : isLocked ? "rgba(255,255,255,0.02)" : "var(--surface)",
+                    cursor: isLocked ? "not-allowed" : "pointer",
+                    opacity: isLocked ? 0.45 : 1,
+                    transition: "all 0.15s", textAlign: "left", minWidth: 140,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    {isLocked && <Lock size={11} color="var(--foreground)" opacity={0.5} />}
+                    {challengeSubmitted && !isLocked && <span style={{ fontSize: 11 }}>✅</span>}
+                    {phaseComplete && !challengeSubmitted && !isLocked && <span style={{ fontSize: 11 }}>🎉</span>}
+                    <span style={{
+                      fontFamily: "monospace", fontSize: 10,
+                      textTransform: "uppercase", letterSpacing: "0.08em",
+                      color: isActive ? "var(--primary)" : "var(--foreground)",
+                      opacity: isActive ? 1 : 0.45,
+                    }}>
+                      Phase {num}
+                    </span>
+                    {!isLocked && (
+                      <span style={{ fontSize: 10, fontFamily: "monospace", color: "var(--foreground)", opacity: 0.35 }}>
+                        {phaseCompleted}/{phaseResources.length}
+                      </span>
+                    )}
+                  </div>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: isActive ? "#ffffff" : "var(--foreground)", opacity: isActive ? 1 : 0.7 }}>
+                    {title}
+                  </span>
+                  <span style={{ fontSize: 11, color: "var(--foreground)", opacity: 0.4, lineHeight: 1.4 }}>
+                    {subtitle}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Locked phase tooltip */}
+          {lockedTooltipPhase && (
+            <div style={{
+              marginBottom: 24,
+              backgroundColor: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 8, padding: "10px 16px",
+              display: "flex", alignItems: "center", gap: 8,
+            }}>
+              <Lock size={13} color="var(--foreground)" opacity={0.4} />
+              <span style={{ fontSize: 13, color: "var(--foreground)", opacity: 0.55 }}>
+                Finish your Phase {lockedTooltipPhase - 1} Build Challenge to unlock Phase {lockedTooltipPhase}
+              </span>
+            </div>
+          )}
+
+          {!lockedTooltipPhase && <div style={{ marginBottom: 24 }} />}
+
+          {/* ── Active phase content ── */}
+          {PHASES.filter((p) => p.num === activePhase).map(({ num, title, subtitle }) => {
+            const resources = filterPhaseResources(ALL_HUB, num, profile, weakest);
+            const doneCount = resources.filter((r) => completed[r.id]).length;
             const isLocked = num > unlockedPhase;
-            const phaseResources = filterPhaseResources(ALL_HUB, num, profile, weakest);
-            const phaseCompleted = phaseResources.filter((r) => completed[r.id]).length;
-            const phaseComplete = phaseResources.length > 0 && phaseCompleted === phaseResources.length;
+            const phaseComplete = resources.length > 0 && doneCount === resources.length;
             const challengeSubmitted = completedChallengePhases.has(num);
 
-            return (
-              <button
-                key={num}
-                onClick={() => {
-                  if (isLocked) {
-                    setLockedTooltipPhase(num);
-                  } else {
-                    setLockedTooltipPhase(null);
-                    setActivePhase(num);
-                  }
-                }}
-                style={{
-                  display: "flex", flexDirection: "column", alignItems: "flex-start",
-                  gap: 2, padding: "12px 18px", borderRadius: 12,
-                  border: isActive ? "1px solid rgba(99,102,241,0.6)" : isLocked ? "1px solid rgba(255,255,255,0.06)" : "1px solid var(--border)",
-                  backgroundColor: isActive ? "rgba(99,102,241,0.10)" : isLocked ? "rgba(255,255,255,0.02)" : "var(--surface)",
-                  cursor: isLocked ? "not-allowed" : "pointer",
-                  opacity: isLocked ? 0.45 : 1,
-                  transition: "all 0.15s", textAlign: "left", minWidth: 140,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  {isLocked && <Lock size={11} color="var(--foreground)" opacity={0.5} />}
-                  {challengeSubmitted && !isLocked && <span style={{ fontSize: 11 }}>✅</span>}
-                  {phaseComplete && !challengeSubmitted && !isLocked && <span style={{ fontSize: 11 }}>🎉</span>}
-                  <span style={{
-                    fontFamily: "monospace", fontSize: 10,
-                    textTransform: "uppercase", letterSpacing: "0.08em",
-                    color: isActive ? "var(--primary)" : "var(--foreground)",
-                    opacity: isActive ? 1 : 0.45,
+            // ── Locked phase content ──
+            if (isLocked) {
+              const prevPhase = (num - 1) as PhaseNum;
+              return (
+                <div key={num} style={{ textAlign: "center", padding: "60px 24px" }}>
+                  <div style={{
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    width: 64, height: 64, borderRadius: "50%",
+                    backgroundColor: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    marginBottom: 20,
                   }}>
-                    Phase {num}
-                  </span>
-                  {!isLocked && (
-                    <span style={{ fontSize: 10, fontFamily: "monospace", color: "var(--foreground)", opacity: 0.35 }}>
-                      {phaseCompleted}/{phaseResources.length}
-                    </span>
-                  )}
+                    <Lock size={28} color="var(--foreground)" opacity={0.3} />
+                  </div>
+                  <h3 style={{ fontSize: 20, fontWeight: 800, color: "var(--foreground)", opacity: 0.5, marginBottom: 8 }}>
+                    Complete Phase {prevPhase} to unlock
+                  </h3>
+                  <p style={{ fontSize: 14, color: "var(--foreground)", opacity: 0.35, lineHeight: 1.6 }}>
+                    Finish your Phase {prevPhase} Build Challenge to unlock this phase.
+                  </p>
                 </div>
-                <span style={{ fontSize: 14, fontWeight: 700, color: isActive ? "#ffffff" : "var(--foreground)", opacity: isActive ? 1 : 0.7 }}>
-                  {title}
-                </span>
-                <span style={{ fontSize: 11, color: "var(--foreground)", opacity: 0.4, lineHeight: 1.4 }}>
-                  {subtitle}
-                </span>
-              </button>
+              );
+            }
+
+            return (
+              <div key={num}>
+                {/* Phase header card */}
+                <div style={{ ...surface, padding: "20px 24px", marginBottom: 24 }}>
+                  <div style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    flexWrap: "wrap", gap: 12, marginBottom: 12,
+                  }}>
+                    <div>
+                      <p style={{
+                        fontFamily: "monospace", fontSize: 10,
+                        textTransform: "uppercase", letterSpacing: "0.1em",
+                        color: "var(--primary)", marginBottom: 4,
+                      }}>Phase {num}</p>
+                      <h2 style={{ fontSize: 22, fontWeight: 800, color: "#ffffff", marginBottom: 2 }}>{title}</h2>
+                      <p style={{ fontSize: 14, color: "var(--foreground)", opacity: 0.5 }}>{subtitle}</p>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                      {num === assignedPhase && !phaseComplete && (
+                        <span style={{
+                          display: "inline-flex", alignItems: "center",
+                          backgroundColor: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)",
+                          color: "var(--primary)", fontSize: 11, fontWeight: 700,
+                          padding: "4px 10px", borderRadius: 999, whiteSpace: "nowrap",
+                        }}>Your starting point</span>
+                      )}
+                      {phaseComplete && !challengeSubmitted && (
+                        <span style={{
+                          display: "inline-flex", alignItems: "center", gap: 4,
+                          backgroundColor: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)",
+                          color: "#22c55e", fontSize: 11, fontWeight: 700,
+                          padding: "4px 10px", borderRadius: 999, whiteSpace: "nowrap",
+                        }}>🎉 Resources Complete</span>
+                      )}
+                      {challengeSubmitted && (
+                        <span style={{
+                          display: "inline-flex", alignItems: "center", gap: 4,
+                          backgroundColor: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)",
+                          color: "#22c55e", fontSize: 11, fontWeight: 700,
+                          padding: "4px 10px", borderRadius: 999, whiteSpace: "nowrap",
+                        }}>✅ Phase Complete</span>
+                      )}
+                    </div>
+                  </div>
+                  <PhaseProgress completed={doneCount} total={resources.length} />
+                </div>
+
+                {/* Resource cards */}
+                {resources.length === 0 ? (
+                  <p style={{ color: "var(--foreground)", opacity: 0.4, textAlign: "center", padding: "40px 0" }}>
+                    No resources for this phase yet.
+                  </p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    {resources.map((r) => (
+                      <ResourceCard
+                        key={r.id}
+                        resource={r}
+                        completed={!!completed[r.id]}
+                        rating={ratings[r.id] ?? 0}
+                        aggRating={aggRatings[r.id]}
+                        locked={false}
+                        onComplete={() => handleComplete(r.id)}
+                        onRate={(n) => handleRate(r.id, n)}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Phase complete banner — stays visible after challenge is started */}
+                {phaseComplete && !challengeSubmitted && (
+                  <PhaseCompleteBanner
+                    challengeStarted={showChallenge}
+                    onStartChallenge={() => {
+                      setShowChallenge(true);
+                      requestAnimationFrame(() =>
+                        requestAnimationFrame(() => {
+                          document.getElementById("build-challenge")?.scrollIntoView({
+                            behavior: "smooth",
+                            block: "start",
+                          });
+                        })
+                      );
+                    }}
+                  />
+                )}
+
+                {/* Build Challenge — stays mounted through success step */}
+                {showChallenge && !challengeSubmitted && (
+                  <BuildChallenge
+                    phase={num}
+                    shareId={shareId}
+                    currentLevel={currentLevel}
+                    onComplete={(newUnlocked) => {
+                      setCompletedChallengePhases((prev) => new Set([...prev, num]));
+                      setUnlockedPhase((prev) => Math.max(prev, newUnlocked) as PhaseNum);
+                    }}
+                    onGraduate={handleGraduate}
+                  />
+                )}
+
+                {/* Persistent done banner on subsequent loads */}
+                {challengeSubmitted && !showChallenge && <ChallengeDoneBanner phase={num} />}
+              </div>
             );
           })}
+
         </div>
-
-        {/* Locked phase tooltip */}
-        {lockedTooltipPhase && (
-          <div style={{
-            marginBottom: 24,
-            backgroundColor: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 8, padding: "10px 16px",
-            display: "flex", alignItems: "center", gap: 8,
-          }}>
-            <Lock size={13} color="var(--foreground)" opacity={0.4} />
-            <span style={{ fontSize: 13, color: "var(--foreground)", opacity: 0.55 }}>
-              Finish your Phase {lockedTooltipPhase - 1} Build Challenge to unlock Phase {lockedTooltipPhase}
-            </span>
-          </div>
-        )}
-
-        {!lockedTooltipPhase && <div style={{ marginBottom: 24 }} />}
-
-        {/* ── Active phase content ── */}
-        {PHASES.filter((p) => p.num === activePhase).map(({ num, title, subtitle }) => {
-          const resources = filterPhaseResources(ALL_HUB, num, profile, weakest);
-          const doneCount = resources.filter((r) => completed[r.id]).length;
-          const isLocked = num > unlockedPhase;
-          const phaseComplete = resources.length > 0 && doneCount === resources.length;
-          const challengeSubmitted = completedChallengePhases.has(num);
-
-          // ── Locked phase content ──
-          if (isLocked) {
-            const prevPhase = (num - 1) as PhaseNum;
-            return (
-              <div key={num} style={{ textAlign: "center", padding: "60px 24px" }}>
-                <div style={{
-                  display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  width: 64, height: 64, borderRadius: "50%",
-                  backgroundColor: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  marginBottom: 20,
-                }}>
-                  <Lock size={28} color="var(--foreground)" opacity={0.3} />
-                </div>
-                <h3 style={{ fontSize: 20, fontWeight: 800, color: "var(--foreground)", opacity: 0.5, marginBottom: 8 }}>
-                  Complete Phase {prevPhase} to unlock
-                </h3>
-                <p style={{ fontSize: 14, color: "var(--foreground)", opacity: 0.35, lineHeight: 1.6 }}>
-                  Finish your Phase {prevPhase} Build Challenge to unlock this phase.
-                </p>
-              </div>
-            );
-          }
-
-          return (
-            <div key={num}>
-              {/* Phase header card */}
-              <div style={{ ...surface, padding: "20px 24px", marginBottom: 24 }}>
-                <div style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  flexWrap: "wrap", gap: 12, marginBottom: 12,
-                }}>
-                  <div>
-                    <p style={{
-                      fontFamily: "monospace", fontSize: 10,
-                      textTransform: "uppercase", letterSpacing: "0.1em",
-                      color: "var(--primary)", marginBottom: 4,
-                    }}>Phase {num}</p>
-                    <h2 style={{ fontSize: 22, fontWeight: 800, color: "#ffffff", marginBottom: 2 }}>{title}</h2>
-                    <p style={{ fontSize: 14, color: "var(--foreground)", opacity: 0.5 }}>{subtitle}</p>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-                    {num === assignedPhase && !phaseComplete && (
-                      <span style={{
-                        display: "inline-flex", alignItems: "center",
-                        backgroundColor: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)",
-                        color: "var(--primary)", fontSize: 11, fontWeight: 700,
-                        padding: "4px 10px", borderRadius: 999, whiteSpace: "nowrap",
-                      }}>Your starting point</span>
-                    )}
-                    {phaseComplete && !challengeSubmitted && (
-                      <span style={{
-                        display: "inline-flex", alignItems: "center", gap: 4,
-                        backgroundColor: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)",
-                        color: "#22c55e", fontSize: 11, fontWeight: 700,
-                        padding: "4px 10px", borderRadius: 999, whiteSpace: "nowrap",
-                      }}>🎉 Resources Complete</span>
-                    )}
-                    {challengeSubmitted && (
-                      <span style={{
-                        display: "inline-flex", alignItems: "center", gap: 4,
-                        backgroundColor: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)",
-                        color: "#22c55e", fontSize: 11, fontWeight: 700,
-                        padding: "4px 10px", borderRadius: 999, whiteSpace: "nowrap",
-                      }}>✅ Phase Complete</span>
-                    )}
-                  </div>
-                </div>
-                <PhaseProgress completed={doneCount} total={resources.length} />
-              </div>
-
-              {/* Resource cards */}
-              {resources.length === 0 ? (
-                <p style={{ color: "var(--foreground)", opacity: 0.4, textAlign: "center", padding: "40px 0" }}>
-                  No resources for this phase yet.
-                </p>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  {resources.map((r) => (
-                    <ResourceCard
-                      key={r.id}
-                      resource={r}
-                      completed={!!completed[r.id]}
-                      rating={ratings[r.id] ?? 0}
-                      aggRating={aggRatings[r.id]}
-                      locked={false}
-                      onComplete={() => handleComplete(r.id)}
-                      onRate={(n) => handleRate(r.id, n)}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {/* Phase complete banner — stays visible after challenge is started */}
-              {phaseComplete && !challengeSubmitted && (
-                <PhaseCompleteBanner
-                  challengeStarted={showChallenge}
-                  onStartChallenge={() => {
-                    setShowChallenge(true);
-                    // Wait for React to commit + browser to paint before scrolling
-                    requestAnimationFrame(() =>
-                      requestAnimationFrame(() => {
-                        document.getElementById("build-challenge")?.scrollIntoView({
-                          behavior: "smooth",
-                          block: "start",
-                        });
-                      })
-                    );
-                  }}
-                />
-              )}
-
-              {/* Build Challenge section — rendered whenever triggered; intentionally NOT
-                  gated on !challengeSubmitted so the success step can finish before the
-                  ChallengeDoneBanner replaces it on the next load */}
-              {showChallenge && !challengeSubmitted && (
-                <BuildChallenge
-                  phase={num}
-                  shareId={shareId}
-                  score={score}
-                  onComplete={(newUnlocked) => {
-                    setCompletedChallengePhases((prev) => new Set([...prev, num]));
-                    setUnlockedPhase((prev) => Math.max(prev, newUnlocked) as PhaseNum);
-                  }}
-                />
-              )}
-
-              {/* Success step is inside BuildChallenge; once it unmounts (challengeSubmitted
-                  becomes true on next load), show the persistent done banner instead */}
-              {challengeSubmitted && !showChallenge && <ChallengeDoneBanner phase={num} />}
-            </div>
-          );
-        })}
-
-      </div>
-    </Layout>
+      </Layout>
+    </>
   );
 }
