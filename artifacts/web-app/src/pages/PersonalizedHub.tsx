@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import confetti from "canvas-confetti";
 import { useUser, SignInButton } from "@clerk/react";
@@ -291,6 +291,14 @@ function filterPhaseResources(
   return sorted.slice(0, max);
 }
 
+// ── YouTube video ID extractor ─────────────────────────────────────
+function getYouTubeId(url: string): string | null {
+  const m = url.match(
+    /(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|v\/|shorts\/))([a-zA-Z0-9_-]{11})/
+  );
+  return m ? m[1] : null;
+}
+
 // ── Spinner ───────────────────────────────────────────────────────
 function Spinner() {
   return (
@@ -345,14 +353,50 @@ function AggRatingDisplay({ agg }: { agg: AggRating | undefined }) {
 }
 
 // ── Resource card ─────────────────────────────────────────────────
-function ResourceCard({ resource, completed, rating, aggRating, locked, onComplete, onRate }: {
+function ResourceCard({ resource, completed, rating, aggRating, isSequentiallyLocked, onComplete, onRate }: {
   resource: HubResource; completed: boolean; rating: number;
-  aggRating: AggRating | undefined; locked: boolean;
+  aggRating: AggRating | undefined; isSequentiallyLocked: boolean;
   onComplete: () => void; onRate: (n: number) => void;
 }) {
   const [installOpen, setInstallOpen] = useState(false);
+  const [playerOpen, setPlayerOpen] = useState(false);
+  const [videoEnded, setVideoEnded] = useState(false);
+  const [openedExternal, setOpenedExternal] = useState(false);
+  const [showUnlockAnim, setShowUnlockAnim] = useState(false);
+  const prevLockedRef = useRef(isSequentiallyLocked);
+
   const installText = resource.type === "skill" ? (INSTALL_INSTRUCTIONS[resource.id] ?? null) : null;
   const isPlaceholder = resource.url === "#";
+  const youTubeId = !isPlaceholder && resource.type === "video" ? getYouTubeId(resource.url) : null;
+
+  // Detect locked → unlocked transition and trigger slide-in animation
+  useEffect(() => {
+    const wasLocked = prevLockedRef.current;
+    prevLockedRef.current = isSequentiallyLocked;
+    if (wasLocked && !isSequentiallyLocked) {
+      setShowUnlockAnim(true);
+      const t = setTimeout(() => setShowUnlockAnim(false), 600);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, [isSequentiallyLocked]);
+
+  // YouTube IFrame API postMessage listener — detects video end (playerState === 0)
+  useEffect(() => {
+    if (!playerOpen) return;
+    function handleYTMessage(e: MessageEvent) {
+      if (e.origin !== "https://www.youtube.com") return;
+      try {
+        const raw: unknown = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
+        const d = raw as { event?: string; info?: { playerState?: number } };
+        if (d?.event === "infoDelivery" && d?.info?.playerState === 0) {
+          setVideoEnded(true);
+        }
+      } catch { /* ignore parse errors */ }
+    }
+    window.addEventListener("message", handleYTMessage);
+    return () => window.removeEventListener("message", handleYTMessage);
+  }, [playerOpen]);
 
   const TYPE_BADGE: Record<string, { bg: string; color: string; label: string }> = {
     video: { bg: "rgba(239,68,68,0.12)",   color: "#f87171",       label: "Video" },
@@ -361,13 +405,66 @@ function ResourceCard({ resource, completed, rating, aggRating, locked, onComple
   };
   const badge = TYPE_BADGE[resource.type] ?? TYPE_BADGE.tool;
 
+  // ── Sequentially locked card ──────────────────────────────────────
+  if (isSequentiallyLocked) {
+    return (
+      <div
+        id={`resource-${resource.id}`}
+        style={{
+          backgroundColor: "var(--surface)",
+          border: "1px solid var(--border)",
+          borderRadius: 14,
+          position: "relative",
+          overflow: "hidden",
+          minHeight: 116,
+        }}
+      >
+        {/* Blurred background content */}
+        <div style={{ padding: 20, filter: "blur(2px)", opacity: 0.35, pointerEvents: "none", userSelect: "none" }}>
+          <span style={{
+            display: "inline-block",
+            backgroundColor: badge.bg, color: badge.color,
+            fontSize: 10, fontWeight: 700, padding: "2px 8px",
+            borderRadius: 999, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8,
+          }}>{badge.label}</span>
+          <p style={{ fontWeight: 700, fontSize: 15, color: "#ffffff", margin: 0 }}>{resource.title}</p>
+          <p style={{ fontSize: 13, color: "var(--foreground)", opacity: 0.65, marginTop: 8, marginBottom: 0, lineHeight: 1.5 }}>
+            {resource.description}
+          </p>
+        </div>
+        {/* Lock overlay */}
+        <div style={{
+          position: "absolute", inset: 0,
+          display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center", gap: 8,
+          backgroundColor: "rgba(10,10,15,0.62)",
+        }}>
+          <span style={{ fontSize: 26 }}>🔒</span>
+          <p style={{
+            fontSize: 13, color: "var(--foreground)", opacity: 0.7,
+            textAlign: "center", margin: 0, fontWeight: 500,
+            maxWidth: 240, lineHeight: 1.5,
+          }}>
+            Complete the previous resource to unlock
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Unlocked card ─────────────────────────────────────────────────
   return (
-    <div style={{
-      backgroundColor: "var(--surface)",
-      border: `1px solid ${completed ? "rgba(34,197,94,0.35)" : "var(--border)"}`,
-      borderRadius: 14, padding: 20, opacity: locked ? 0.45 : 1,
-      display: "flex", flexDirection: "column", gap: 12,
-    }}>
+    <div
+      id={`resource-${resource.id}`}
+      style={{
+        backgroundColor: "var(--surface)",
+        border: `1px solid ${completed ? "rgba(34,197,94,0.35)" : "var(--border)"}`,
+        borderRadius: 14, padding: 20,
+        display: "flex", flexDirection: "column", gap: 12,
+        animation: showUnlockAnim ? "unlockSlideIn 0.45s cubic-bezier(0.22,1,0.36,1) both" : undefined,
+      }}
+    >
+      {/* Title row */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <span style={{
@@ -402,6 +499,7 @@ function ResourceCard({ resource, completed, rating, aggRating, locked, onComple
         }}>{resource.meta}</span>
       )}
 
+      {/* Cowork skill install instructions */}
       {installText && (
         <div>
           <button
@@ -428,13 +526,93 @@ function ResourceCard({ resource, completed, rating, aggRating, locked, onComple
         </div>
       )}
 
+      {/* YouTube inline player (replaces "Open ↗" for YouTube videos) */}
+      {youTubeId && (
+        <div>
+          {!playerOpen ? (
+            <button
+              onClick={() => { setPlayerOpen(true); setVideoEnded(false); }}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 7,
+                backgroundColor: "rgba(239,68,68,0.10)",
+                border: "1px solid rgba(239,68,68,0.28)",
+                color: "#f87171", fontSize: 12, fontWeight: 700,
+                padding: "7px 15px", borderRadius: 7, cursor: "pointer",
+                transition: "all 0.15s",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(239,68,68,0.18)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "rgba(239,68,68,0.10)"; }}
+            >
+              ▶ Watch
+            </button>
+          ) : (
+            <div>
+              {/* Responsive 16:9 wrapper */}
+              <div style={{
+                position: "relative", paddingBottom: "56.25%", height: 0,
+                borderRadius: 10, overflow: "hidden", marginBottom: 8,
+              }}>
+                <iframe
+                  src={`https://www.youtube.com/embed/${youTubeId}?enablejsapi=1&autoplay=1&rel=0&modestbranding=1`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  title={resource.title}
+                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
+                />
+              </div>
+              <button
+                onClick={() => setPlayerOpen(false)}
+                style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  color: "var(--foreground)", opacity: 0.4, fontSize: 11,
+                  padding: 0, fontFamily: "monospace", transition: "opacity 0.15s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.4")}
+              >
+                ✕ Close player
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Prompt shown after video ends */}
+      {videoEnded && !completed && (
+        <div style={{
+          backgroundColor: "rgba(34,197,94,0.07)",
+          border: "1px solid rgba(34,197,94,0.22)",
+          borderRadius: 8, padding: "9px 14px",
+          fontSize: 12, color: "#22c55e", fontWeight: 500,
+          display: "flex", alignItems: "center", gap: 6, lineHeight: 1.45,
+        }}>
+          <span>🎬</span>
+          Great watch! Mark it complete to unlock the next resource.
+        </div>
+      )}
+
+      {/* Prompt shown after opening a tool / skill in a new tab */}
+      {openedExternal && !completed && resource.type !== "video" && (
+        <div style={{
+          backgroundColor: "rgba(99,102,241,0.07)",
+          border: "1px solid rgba(99,102,241,0.22)",
+          borderRadius: 8, padding: "9px 14px",
+          fontSize: 12, color: "var(--primary)", fontWeight: 500,
+          display: "flex", alignItems: "center", gap: 6, lineHeight: 1.45,
+        }}>
+          <span>👆</span>
+          Done exploring? Mark it complete to unlock the next resource.
+        </div>
+      )}
+
+      {/* Actions row */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         flexWrap: "wrap", gap: 10, paddingTop: 8, borderTop: "1px solid var(--border)",
       }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <StarRating rating={rating} onRate={onRate} locked={locked} />
+            <StarRating rating={rating} onRate={onRate} locked={false} />
             {rating > 0 && (
               <span style={{ fontSize: 10, color: "var(--foreground)", opacity: 0.35, fontFamily: "monospace" }}>
                 your rating
@@ -445,9 +623,11 @@ function ResourceCard({ resource, completed, rating, aggRating, locked, onComple
         </div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {!isPlaceholder && (
+          {/* "Open ↗" for non-YouTube resources (tools, skills, non-YouTube videos, placeholders excluded) */}
+          {!isPlaceholder && !youTubeId && (
             <a
               href={resource.url} target="_blank" rel="noopener noreferrer"
+              onClick={() => { if (resource.type !== "video") setOpenedExternal(true); }}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 5,
                 color: "var(--foreground)", opacity: 0.5, fontSize: 12, textDecoration: "none",
@@ -459,28 +639,21 @@ function ResourceCard({ resource, completed, rating, aggRating, locked, onComple
             </a>
           )}
 
-          {!locked && (
-            <button
-              onClick={onComplete} disabled={completed}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 5,
-                backgroundColor: completed ? "rgba(34,197,94,0.12)" : "var(--primary)",
-                color: completed ? "#22c55e" : "#ffffff",
-                border: completed ? "1px solid rgba(34,197,94,0.3)" : "none",
-                fontSize: 12, fontWeight: 600, padding: "6px 14px",
-                borderRadius: 7, cursor: completed ? "default" : "pointer",
-                whiteSpace: "nowrap", transition: "all 0.15s",
-              }}
-            >
-              {completed ? "Completed ✓" : "Mark Complete"}
-            </button>
-          )}
-
-          {locked && (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "var(--foreground)", opacity: 0.3, fontSize: 12 }}>
-              <Lock size={12} /> Locked
-            </span>
-          )}
+          <button
+            onClick={onComplete} disabled={completed}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              backgroundColor: completed ? "rgba(34,197,94,0.12)" : "var(--primary)",
+              color: completed ? "#22c55e" : "#ffffff",
+              border: completed ? "1px solid rgba(34,197,94,0.3)" : "none",
+              fontSize: 12, fontWeight: 600, padding: "6px 14px",
+              borderRadius: 7, cursor: completed ? "default" : "pointer",
+              whiteSpace: "nowrap", transition: "all 0.15s",
+              animation: videoEnded && !completed ? "pulseGreen 1.4s ease-in-out infinite" : undefined,
+            }}
+          >
+            {completed ? "Completed ✓" : "Mark Complete"}
+          </button>
         </div>
       </div>
     </div>
@@ -515,10 +688,13 @@ function PhaseCompleteBanner({
   challengeStarted: boolean;
 }) {
   return (
-    <div style={{
-      marginTop: 32, borderRadius: 16, padding: 2,
-      background: "linear-gradient(135deg, rgba(34,197,94,0.6) 0%, rgba(16,185,129,0.4) 100%)",
-    }}>
+    <div
+      id="phase-complete-banner"
+      style={{
+        marginTop: 32, borderRadius: 16, padding: 2,
+        background: "linear-gradient(135deg, rgba(34,197,94,0.6) 0%, rgba(16,185,129,0.4) 100%)",
+      }}
+    >
       <div style={{ backgroundColor: "var(--background)", borderRadius: 14, padding: "28px 32px", textAlign: "center" }}>
         <div style={{ fontSize: 36, marginBottom: 10 }}>🎉</div>
         <h3 style={{ fontSize: 20, fontWeight: 800, color: "#ffffff", marginBottom: 8 }}>
@@ -538,6 +714,7 @@ function PhaseCompleteBanner({
             borderRadius: 9, border: "none",
             cursor: challengeStarted ? "default" : "pointer",
             opacity: challengeStarted ? 0.75 : 1,
+            animation: !challengeStarted ? "challengeBounceIn 0.5s cubic-bezier(0.34,1.4,0.64,1) 0.1s both" : undefined,
           }}
         >
           {challengeStarted ? "Build Challenge below ↓" : "Ready for your Build Challenge? →"}
@@ -1217,7 +1394,7 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
   }, [shareId, navigate, isLoaded, isSignedIn]);
 
   // ── Mark complete ───────────────────────────────────────────────
-  function handleComplete(resourceId: string) {
+  function handleComplete(resourceId: string, phaseResources: HubResource[], resourceIdx: number) {
     setCompleted((prev) => ({ ...prev, [resourceId]: true }));
     void sql`
       INSERT INTO user_resource_progress (share_id, resource_id)
@@ -1227,6 +1404,19 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
       console.error("Failed to save completion:", err);
       toast.error("Couldn't save — check your connection");
     });
+
+    // After a brief pause, scroll to the next resource (which will just unlock) or the phase-complete banner
+    setTimeout(() => {
+      if (resourceIdx < phaseResources.length - 1) {
+        document.getElementById(`resource-${phaseResources[resourceIdx + 1].id}`)?.scrollIntoView({
+          behavior: "smooth", block: "center",
+        });
+      } else {
+        document.getElementById("phase-complete-banner")?.scrollIntoView({
+          behavior: "smooth", block: "start",
+        });
+      }
+    }, 800);
   }
 
   // ── Rate resource ───────────────────────────────────────────────
@@ -1334,6 +1524,23 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
 
   return (
     <>
+      {/* Global keyframes for hub interactions */}
+      <style>{`
+        @keyframes unlockSlideIn {
+          0%   { transform: translateY(10px); opacity: 0.3; }
+          100% { transform: translateY(0);    opacity: 1;   }
+        }
+        @keyframes pulseGreen {
+          0%, 100% { box-shadow: 0 0 0 0    rgba(34,197,94,0.55); }
+          50%      { box-shadow: 0 0 0 10px rgba(34,197,94,0);    }
+        }
+        @keyframes challengeBounceIn {
+          0%   { transform: scale(0.94); opacity: 0.7; }
+          60%  { transform: scale(1.03);               }
+          100% { transform: scale(1);    opacity: 1;   }
+        }
+      `}</style>
+
       {/* Graduation screen overlay */}
       {showGraduation && (
         <GraduationScreen
@@ -1555,18 +1762,26 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
                   </p>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                    {resources.map((r) => (
-                      <ResourceCard
-                        key={r.id}
-                        resource={r}
-                        completed={!!completed[r.id]}
-                        rating={ratings[r.id] ?? 0}
-                        aggRating={aggRatings[r.id]}
-                        locked={false}
-                        onComplete={() => handleComplete(r.id)}
-                        onRate={(n) => handleRate(r.id, n)}
-                      />
-                    ))}
+                    {(() => {
+                      // Sequential unlock: resources are locked until the one before them is complete.
+                      // Unlocked "through" the first incomplete resource (and all before it).
+                      let seqUnlockedThrough = resources.length - 1; // default: all unlocked (all done)
+                      for (let i = 0; i < resources.length; i++) {
+                        if (!completed[resources[i].id]) { seqUnlockedThrough = i; break; }
+                      }
+                      return resources.map((r, idx) => (
+                        <ResourceCard
+                          key={r.id}
+                          resource={r}
+                          completed={!!completed[r.id]}
+                          rating={ratings[r.id] ?? 0}
+                          aggRating={aggRatings[r.id]}
+                          isSequentiallyLocked={idx > seqUnlockedThrough}
+                          onComplete={() => handleComplete(r.id, resources, idx)}
+                          onRate={(n) => handleRate(r.id, n)}
+                        />
+                      ));
+                    })()}
                   </div>
                 )}
 
