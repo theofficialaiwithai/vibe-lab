@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import confetti from "canvas-confetti";
 import { useUser, SignInButton } from "@clerk/react";
 import { toast } from "sonner";
 import { ExternalLink, ChevronDown, ChevronUp, Lock } from "lucide-react";
@@ -142,17 +143,6 @@ const CONFETTI_PIECES = Array.from({ length: 32 }, (_, i) => ({
   rot: i % 2 === 0 ? "360deg" : "-360deg",
 }));
 
-// ── Deterministic confetti (graduation — more pieces, longer fall) ─
-const GRAD_CONFETTI = Array.from({ length: 64 }, (_, i) => ({
-  id: i,
-  color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-  left: `${(i * 1.6) % 100}%`,
-  delay: `${(i * 0.06) % 1.6}s`,
-  duration: `${1.4 + (i * 0.04) % 1.0}s`,
-  size: 6 + (i % 9),
-  rot: i % 2 === 0 ? "720deg" : "-720deg",
-}));
-
 // ── Resource → phase mapping ──────────────────────────────────────
 const PHASE_MAP: Record<string, PhaseNum> = {
   // Phase 1 — Foundation
@@ -237,13 +227,6 @@ function levelToPhase(level: Level): PhaseNum {
   return 3;
 }
 
-/** Maps a resource's difficulty level to a hub level (1/2/3). */
-function resourceHubLevel(r: Resource): number {
-  if (r.level === "beginner") return 1;
-  if (r.level === "intermediate") return 2;
-  return 3;
-}
-
 function derivePhase(score: number, currentStatus: string): PhaseNum {
   if (
     score > 70 ||
@@ -257,16 +240,13 @@ function derivePhase(score: number, currentStatus: string): PhaseNum {
   return 1;
 }
 
-/** Returns all hub resources for a given hub level, each annotated with a phase. */
-function buildHubResources(hubLevel: number): HubResource[] {
-  const mapped = ALL_RESOURCES
-    .filter((r) => resourceHubLevel(r) === hubLevel)
-    .map((r) => ({
-      ...r,
-      phase: (PHASE_MAP[r.id] ?? levelToPhase(r.level)) as PhaseNum,
-    }));
-  const levelPlaceholders = PLACEHOLDERS.filter((p) => resourceHubLevel(p) === hubLevel);
-  return [...mapped, ...levelPlaceholders];
+/** Returns all hub resources annotated with a phase number from PHASE_MAP. */
+function buildHubResources(): HubResource[] {
+  const mapped = ALL_RESOURCES.map((r) => ({
+    ...r,
+    phase: (PHASE_MAP[r.id] ?? levelToPhase(r.level)) as PhaseNum,
+  }));
+  return [...mapped, ...PLACEHOLDERS];
 }
 
 function filterPhaseResources(
@@ -569,30 +549,6 @@ function Confetti() {
           borderRadius: p.id % 4 === 0 ? "50%" : 2,
           "--r": p.rot,
           animation: `cfFall ${p.duration} ${p.delay} ease-in both`,
-        } as React.CSSProperties} />
-      ))}
-    </div>
-  );
-}
-
-// ── Graduation full-screen confetti ──────────────────────────────
-function GraduationConfetti() {
-  return (
-    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 999, overflow: "hidden" }}>
-      <style>{`
-        @keyframes gradFall {
-          0%   { transform: translateY(-12px) rotate(0deg);   opacity: 1; }
-          100% { transform: translateY(110vh) rotate(var(--r)); opacity: 0.2; }
-        }
-      `}</style>
-      {GRAD_CONFETTI.map((p) => (
-        <div key={p.id} style={{
-          position: "absolute", top: 0, left: p.left,
-          width: p.size, height: p.size,
-          backgroundColor: p.color,
-          borderRadius: p.id % 4 === 0 ? "50%" : 2,
-          "--r": p.rot,
-          animation: `gradFall ${p.duration} ${p.delay} ease-in forwards`,
         } as React.CSSProperties} />
       ))}
     </div>
@@ -967,7 +923,7 @@ function ChallengeDoneBanner({ phase }: { phase: PhaseNum }) {
   );
 }
 
-// ── Full-screen graduation moment ─────────────────────────────────
+// ── Graduation modal ──────────────────────────────────────────────
 function GraduationScreen({
   fromLevel,
   shareId,
@@ -981,6 +937,29 @@ function GraduationScreen({
   const fromBadge = LEVEL_BADGES[fromLevel];
   const nextBadge = !isFinal ? LEVEL_BADGES[fromLevel + 1] : null;
 
+  // Fire canvas-confetti when modal opens
+  useEffect(() => {
+    const burst = (x: number, y: number, spread: number) =>
+      void confetti({
+        particleCount: 80,
+        spread,
+        origin: { x, y },
+        colors: ["#6366f1", "#a78bfa", "#f59e0b", "#22c55e", "#f87171", "#34d399"],
+        gravity: 0.9,
+        scalar: 1.1,
+      });
+
+    // Centre burst
+    burst(0.5, 0.55, 90);
+    // Side bursts after a short delay
+    const t = setTimeout(() => {
+      burst(0.15, 0.5, 70);
+      burst(0.85, 0.5, 70);
+    }, 350);
+
+    return () => clearTimeout(t);
+  }, []);
+
   function handleShare() {
     const url = `${window.location.origin}/hub?id=${shareId}`;
     void navigator.clipboard.writeText(url).then(() => {
@@ -989,84 +968,112 @@ function GraduationScreen({
   }
 
   return (
-    <>
-      <GraduationConfetti />
+    // Backdrop
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 1000,
+      backgroundColor: "rgba(0,0,0,0.72)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      padding: "24px",
+      backdropFilter: "blur(6px)",
+    }}>
+      {/* Modal card */}
       <div style={{
-        position: "fixed", inset: 0, zIndex: 1000,
-        backgroundColor: "rgba(0,0,0,0.93)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        padding: "40px 24px",
-        backdropFilter: "blur(8px)",
+        position: "relative",
+        backgroundColor: "var(--surface)",
+        border: "1px solid var(--border)",
+        borderRadius: 24,
+        padding: "52px 40px 44px",
+        maxWidth: 500, width: "100%",
+        textAlign: "center",
+        boxShadow: "0 40px 100px rgba(0,0,0,0.7)",
+        animation: "modalIn 0.35s cubic-bezier(0.34,1.4,0.64,1) both",
       }}>
-        <div style={{ maxWidth: 560, width: "100%", textAlign: "center", position: "relative", zIndex: 1001 }}>
-          {/* Animated badge */}
-          <div style={{
-            fontSize: 88, marginBottom: 28, lineHeight: 1,
-            display: "block",
-            animation: "gradBounce 0.65s cubic-bezier(0.34,1.56,0.64,1) both",
-          }}>
-            {isFinal ? "🏆" : nextBadge?.emoji}
-          </div>
+        {/* Close X */}
+        <button
+          onClick={onEnterHub}
+          aria-label="Close"
+          style={{
+            position: "absolute", top: 16, right: 16,
+            background: "none", border: "none",
+            color: "var(--foreground)", opacity: 0.35, cursor: "pointer",
+            fontSize: 18, lineHeight: 1, padding: "4px 6px",
+            borderRadius: 6, transition: "opacity 0.15s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.35")}
+        >
+          ✕
+        </button>
 
-          <h1 style={{
-            fontSize: "clamp(28px, 6vw, 46px)", fontWeight: 800,
-            color: "#ffffff", marginBottom: 18, letterSpacing: "-0.02em", lineHeight: 1.15,
-          }}>
-            {isFinal
-              ? "You're a Vibe Architect. 🏆"
-              : `You've graduated from ${fromBadge.title}! 🎓`}
-          </h1>
-
-          <p style={{
-            fontSize: 18, color: "var(--foreground)", opacity: 0.7,
-            lineHeight: 1.65, marginBottom: 48, maxWidth: 440, margin: "0 auto 48px",
-          }}>
-            {isFinal
-              ? "You've completed the full Vibe Lab journey. You didn't just learn — you built."
-              : `You're now a ${nextBadge?.title}. Your new learning hub is ready.`}
-          </p>
-
-          {isFinal ? (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
-              <button
-                onClick={handleShare}
-                style={{
-                  backgroundColor: "var(--primary)", color: "#ffffff",
-                  fontWeight: 700, fontSize: 17, padding: "16px 40px",
-                  borderRadius: 12, border: "none", cursor: "pointer",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                Share your journey 🔗
-              </button>
-              <p style={{ fontSize: 13, color: "var(--foreground)", opacity: 0.35, fontFamily: "monospace" }}>
-                Copies your hub URL to clipboard
-              </p>
-            </div>
-          ) : (
-            <button
-              onClick={onEnterHub}
-              style={{
-                backgroundColor: "var(--primary)", color: "#ffffff",
-                fontWeight: 700, fontSize: 17, padding: "16px 40px",
-                borderRadius: 12, border: "none", cursor: "pointer",
-                letterSpacing: "-0.01em",
-              }}
-            >
-              Enter {nextBadge?.title} Hub →
-            </button>
-          )}
+        {/* Badge */}
+        <div style={{
+          fontSize: 72, lineHeight: 1, marginBottom: 24,
+          animation: "badgeBounce 0.6s cubic-bezier(0.34,1.56,0.64,1) 0.05s both",
+          display: "block",
+        }}>
+          {isFinal ? "🏆" : nextBadge?.emoji}
         </div>
 
-        <style>{`
-          @keyframes gradBounce {
-            0%   { transform: scale(0.2) rotate(-15deg); opacity: 0; }
-            60%  { transform: scale(1.12) rotate(4deg);  opacity: 1; }
-            100% { transform: scale(1)   rotate(0deg);   opacity: 1; }
-          }
-        `}</style>
+        <h2 style={{
+          fontSize: "clamp(22px, 5vw, 30px)", fontWeight: 800,
+          color: "#ffffff", marginBottom: 12, letterSpacing: "-0.02em", lineHeight: 1.2,
+        }}>
+          {isFinal
+            ? "You're a Vibe Architect. 🏆"
+            : `You've graduated from ${fromBadge.title}! 🎓`}
+        </h2>
+
+        <p style={{
+          fontSize: 16, color: "var(--foreground)", opacity: 0.65,
+          lineHeight: 1.65, marginBottom: 36,
+        }}>
+          {isFinal
+            ? "You've completed the full Vibe Lab journey. You didn't just learn — you built."
+            : `You're now a ${nextBadge?.title}. Your new learning hub is ready.`}
+        </p>
+
+        {isFinal ? (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+            <button
+              onClick={handleShare}
+              style={{
+                backgroundColor: "var(--primary)", color: "#ffffff",
+                fontWeight: 700, fontSize: 16, padding: "14px 36px",
+                borderRadius: 10, border: "none", cursor: "pointer", width: "100%",
+              }}
+            >
+              Share your journey 🔗
+            </button>
+            <p style={{ fontSize: 12, color: "var(--foreground)", opacity: 0.3, fontFamily: "monospace" }}>
+              Copies your hub URL to clipboard
+            </p>
+          </div>
+        ) : (
+          <button
+            onClick={onEnterHub}
+            style={{
+              backgroundColor: "var(--primary)", color: "#ffffff",
+              fontWeight: 700, fontSize: 16, padding: "14px 36px",
+              borderRadius: 10, border: "none", cursor: "pointer", width: "100%",
+            }}
+          >
+            Enter {nextBadge?.title} Hub →
+          </button>
+        )}
       </div>
-    </>
+
+      <style>{`
+        @keyframes modalIn {
+          0%   { transform: scale(0.88) translateY(12px); opacity: 0; }
+          100% { transform: scale(1)    translateY(0);    opacity: 1; }
+        }
+        @keyframes badgeBounce {
+          0%   { transform: scale(0.3) rotate(-12deg); opacity: 0; }
+          60%  { transform: scale(1.15) rotate(4deg);  opacity: 1; }
+          100% { transform: scale(1)   rotate(0deg);   opacity: 1; }
+        }
+      `}</style>
+    </div>
   );
 }
 
@@ -1234,6 +1241,7 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
 
   // ── Graduation handler ──────────────────────────────────────────
   function handleGraduate(newLevel: number | null) {
+    console.log("[Graduation] triggered — fromLevel:", currentLevel, "→ newLevel:", newLevel);
     const fromLv = currentLevel;
 
     if (newLevel !== null) {
@@ -1296,7 +1304,7 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
     .map((s) => s.id) as CategoryId[];
 
   const levelBadge = LEVEL_BADGES[currentLevel] ?? LEVEL_BADGES[1];
-  const ALL_HUB = buildHubResources(currentLevel);
+  const ALL_HUB = buildHubResources();
 
   // Overall journey progress: Phase N of 9
   const journeyPhase = (currentLevel - 1) * 3 + activePhase;
@@ -1451,6 +1459,7 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
             const isLocked = num > unlockedPhase;
             const phaseComplete = resources.length > 0 && doneCount === resources.length;
             const challengeSubmitted = completedChallengePhases.has(num);
+            console.log(`[Phase ${num}] resources: ${resources.length}, done: ${doneCount}, phaseComplete: ${phaseComplete}, challengeSubmitted: ${challengeSubmitted}, isLocked: ${isLocked}`);
 
             // ── Locked phase content ──
             if (isLocked) {
