@@ -361,6 +361,7 @@ function ResourceCard({ resource, completed, rating, aggRating, isSequentiallyLo
   const [installOpen, setInstallOpen] = useState(false);
   const [playerOpen, setPlayerOpen] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
+  const [embedBlocked, setEmbedBlocked] = useState(false);
   const [openedExternal, setOpenedExternal] = useState(false);
   const [showUnlockAnim, setShowUnlockAnim] = useState(false);
   const prevLockedRef = useRef(isSequentiallyLocked);
@@ -381,16 +382,29 @@ function ResourceCard({ resource, completed, rating, aggRating, isSequentiallyLo
     return undefined;
   }, [isSequentiallyLocked]);
 
-  // YouTube IFrame API postMessage listener — detects video end (playerState === 0)
+  // YouTube IFrame API postMessage listener (works with both youtube.com and youtube-nocookie.com)
+  // Detects: video ended (playerState 0) and embed-blocked errors (code 101 / 150)
   useEffect(() => {
     if (!playerOpen) return;
     function handleYTMessage(e: MessageEvent) {
-      if (e.origin !== "https://www.youtube.com") return;
+      if (
+        e.origin !== "https://www.youtube.com" &&
+        e.origin !== "https://www.youtube-nocookie.com"
+      ) return;
       try {
         const raw: unknown = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
-        const d = raw as { event?: string; info?: { playerState?: number } };
-        if (d?.event === "infoDelivery" && d?.info?.playerState === 0) {
-          setVideoEnded(true);
+        const d = raw as {
+          event?: string;
+          info?: {
+            playerState?: number;
+            error?: { errorCode?: number };
+          };
+        };
+        if (d?.event === "infoDelivery") {
+          if (d.info?.playerState === 0) setVideoEnded(true);
+          // errorCode 101 / 150 = uploader has disabled embedding
+          const code = d.info?.error?.errorCode;
+          if (code === 101 || code === 150) setEmbedBlocked(true);
         }
       } catch { /* ignore parse errors */ }
     }
@@ -531,7 +545,7 @@ function ResourceCard({ resource, completed, rating, aggRating, isSequentiallyLo
         <div>
           {!playerOpen ? (
             <button
-              onClick={() => { setPlayerOpen(true); setVideoEnded(false); }}
+              onClick={() => { setPlayerOpen(true); setVideoEnded(false); setEmbedBlocked(false); }}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 7,
                 backgroundColor: "rgba(239,68,68,0.10)",
@@ -545,15 +559,59 @@ function ResourceCard({ resource, completed, rating, aggRating, isSequentiallyLo
             >
               ▶ Watch
             </button>
+          ) : embedBlocked ? (
+            /* Graceful fallback when the uploader has disabled embedding */
+            <div style={{
+              backgroundColor: "rgba(239,68,68,0.06)",
+              border: "1px solid rgba(239,68,68,0.18)",
+              borderRadius: 10, padding: "16px 18px",
+              display: "flex", flexDirection: "column", gap: 10,
+            }}>
+              <p style={{
+                fontSize: 12, color: "var(--foreground)", opacity: 0.55,
+                margin: 0, lineHeight: 1.5,
+              }}>
+                🚫 Embedding is disabled for this video by the uploader.
+              </p>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <a
+                  href={resource.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                    backgroundColor: "rgba(239,68,68,0.12)",
+                    border: "1px solid rgba(239,68,68,0.3)",
+                    color: "#f87171", fontSize: 12, fontWeight: 700,
+                    padding: "7px 14px", borderRadius: 7, textDecoration: "none",
+                    transition: "all 0.15s",
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(239,68,68,0.2)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(239,68,68,0.12)"; }}
+                >
+                  Watch on YouTube ↗
+                </a>
+                <button
+                  onClick={() => setPlayerOpen(false)}
+                  style={{
+                    background: "none", border: "none", cursor: "pointer",
+                    color: "var(--foreground)", opacity: 0.4, fontSize: 11,
+                    padding: 0, fontFamily: "monospace", transition: "opacity 0.15s",
+                  }}
+                >
+                  ✕ Cancel
+                </button>
+              </div>
+            </div>
           ) : (
             <div>
-              {/* Responsive 16:9 wrapper */}
+              {/* Responsive 16:9 wrapper — privacy-enhanced domain + origin for bot-check bypass */}
               <div style={{
                 position: "relative", paddingBottom: "56.25%", height: 0,
                 borderRadius: 10, overflow: "hidden", marginBottom: 8,
               }}>
                 <iframe
-                  src={`https://www.youtube.com/embed/${youTubeId}?enablejsapi=1&autoplay=1&rel=0&modestbranding=1`}
+                  src={`https://www.youtube-nocookie.com/embed/${youTubeId}?enablejsapi=1&autoplay=1&rel=0&modestbranding=1&origin=${encodeURIComponent(window.location.origin)}`}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                   title={resource.title}
