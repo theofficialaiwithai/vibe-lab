@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import confetti from "canvas-confetti";
+import YouTube from "react-youtube";
 import { useUser, SignInButton } from "@clerk/react";
 import { toast } from "sonner";
 import { ExternalLink, ChevronDown, ChevronUp, Lock } from "lucide-react";
@@ -382,35 +383,8 @@ function ResourceCard({ resource, completed, rating, aggRating, isSequentiallyLo
     return undefined;
   }, [isSequentiallyLocked]);
 
-  // YouTube IFrame API postMessage listener (works with both youtube.com and youtube-nocookie.com)
-  // Detects: video ended (playerState 0) and embed-blocked errors (code 101 / 150)
-  useEffect(() => {
-    if (!playerOpen) return;
-    function handleYTMessage(e: MessageEvent) {
-      if (
-        e.origin !== "https://www.youtube.com" &&
-        e.origin !== "https://www.youtube-nocookie.com"
-      ) return;
-      try {
-        const raw: unknown = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
-        const d = raw as {
-          event?: string;
-          info?: {
-            playerState?: number;
-            error?: { errorCode?: number };
-          };
-        };
-        if (d?.event === "infoDelivery") {
-          if (d.info?.playerState === 0) setVideoEnded(true);
-          // errorCode 101 / 150 = uploader has disabled embedding
-          const code = d.info?.error?.errorCode;
-          if (code === 101 || code === 150) setEmbedBlocked(true);
-        }
-      } catch { /* ignore parse errors */ }
-    }
-    window.addEventListener("message", handleYTMessage);
-    return () => window.removeEventListener("message", handleYTMessage);
-  }, [playerOpen]);
+  // Event handlers are wired through react-youtube's onEnd / onError props — no manual
+  // postMessage listener needed. YT.Player handles the full API handshake internally.
 
   const TYPE_BADGE: Record<string, { bg: string; color: string; label: string }> = {
     video: { bg: "rgba(239,68,68,0.12)",   color: "#f87171",       label: "Video" },
@@ -560,62 +534,83 @@ function ResourceCard({ resource, completed, rating, aggRating, isSequentiallyLo
               ▶ Watch
             </button>
           ) : embedBlocked ? (
-            /* Graceful fallback when the uploader has disabled embedding */
-            <div style={{
-              backgroundColor: "rgba(239,68,68,0.06)",
-              border: "1px solid rgba(239,68,68,0.18)",
-              borderRadius: 10, padding: "16px 18px",
-              display: "flex", flexDirection: "column", gap: 10,
-            }}>
-              <p style={{
-                fontSize: 12, color: "var(--foreground)", opacity: 0.55,
-                margin: 0, lineHeight: 1.5,
-              }}>
-                🚫 Embedding is disabled for this video by the uploader.
-              </p>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <a
-                  href={resource.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: 5,
-                    backgroundColor: "rgba(239,68,68,0.12)",
-                    border: "1px solid rgba(239,68,68,0.3)",
-                    color: "#f87171", fontSize: 12, fontWeight: 700,
-                    padding: "7px 14px", borderRadius: 7, textDecoration: "none",
-                    transition: "all 0.15s",
-                  }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(239,68,68,0.2)"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(239,68,68,0.12)"; }}
+            /* Fallback: thumbnail + play overlay → opens YouTube in new tab */
+            <div>
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => window.open(resource.url, "_blank", "noopener,noreferrer")}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") window.open(resource.url, "_blank", "noopener,noreferrer"); }}
+                style={{ position: "relative", cursor: "pointer", borderRadius: 10, overflow: "hidden", marginBottom: 6 }}
+              >
+                <img
+                  src={`https://img.youtube.com/vi/${youTubeId}/maxresdefault.jpg`}
+                  onError={(e) => { e.currentTarget.src = `https://img.youtube.com/vi/${youTubeId}/hqdefault.jpg`; }}
+                  alt={resource.title}
+                  style={{ width: "100%", display: "block", borderRadius: 10 }}
+                />
+                {/* Overlay + play button */}
+                <div style={{
+                  position: "absolute", inset: 0, borderRadius: 10,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  backgroundColor: "rgba(0,0,0,0.38)",
+                  transition: "background-color 0.18s",
+                }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(0,0,0,0.55)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(0,0,0,0.38)"; }}
                 >
-                  Watch on YouTube ↗
-                </a>
-                <button
-                  onClick={() => setPlayerOpen(false)}
-                  style={{
-                    background: "none", border: "none", cursor: "pointer",
-                    color: "var(--foreground)", opacity: 0.4, fontSize: 11,
-                    padding: 0, fontFamily: "monospace", transition: "opacity 0.15s",
-                  }}
-                >
-                  ✕ Cancel
-                </button>
+                  <div style={{
+                    width: 60, height: 60, borderRadius: "50%",
+                    backgroundColor: "#f87171",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    boxShadow: "0 4px 24px rgba(0,0,0,0.5)",
+                  }}>
+                    <span style={{ fontSize: 24, marginLeft: 4, color: "#fff" }}>▶</span>
+                  </div>
+                </div>
               </div>
+              <p style={{ fontSize: 11, fontFamily: "monospace", color: "var(--foreground)", opacity: 0.4, margin: "0 0 2px" }}>
+                ↗ This video opens on YouTube
+              </p>
+              <button
+                onClick={() => setPlayerOpen(false)}
+                style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  color: "var(--foreground)", opacity: 0.35, fontSize: 11,
+                  padding: 0, fontFamily: "monospace",
+                }}
+              >
+                ✕ Cancel
+              </button>
             </div>
           ) : (
+            /* react-youtube — uses official YT.Player API (proper handshake, no bot-check wall) */
             <div>
-              {/* Responsive 16:9 wrapper — privacy-enhanced domain + origin for bot-check bypass */}
-              <div style={{
-                position: "relative", paddingBottom: "56.25%", height: 0,
-                borderRadius: 10, overflow: "hidden", marginBottom: 8,
-              }}>
-                <iframe
-                  src={`https://www.youtube-nocookie.com/embed/${youTubeId}?enablejsapi=1&autoplay=1&rel=0&modestbranding=1&origin=${encodeURIComponent(window.location.origin)}`}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  title={resource.title}
-                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
+              {/* Responsive 16:9 aspect-ratio wrapper; CSS in global <style> sizes the inner iframe */}
+              <div
+                className="hub-yt-player"
+                style={{
+                  position: "relative", paddingBottom: "56.25%", height: 0,
+                  borderRadius: 10, overflow: "hidden", marginBottom: 8,
+                }}
+              >
+                <YouTube
+                  videoId={youTubeId}
+                  opts={{
+                    width: "100%",
+                    height: "100%",
+                    playerVars: {
+                      autoplay: 1 as const,
+                      rel: 0 as const,
+                      modestbranding: 1 as const,
+                    },
+                    host: "https://www.youtube-nocookie.com",
+                  }}
+                  onEnd={() => setVideoEnded(true)}
+                  onError={(e) => {
+                    // 101 / 150 = uploader has disabled embedding
+                    if (e.data === 101 || e.data === 150) setEmbedBlocked(true);
+                  }}
                 />
               </div>
               <button
@@ -1582,7 +1577,7 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
 
   return (
     <>
-      {/* Global keyframes for hub interactions */}
+      {/* Global styles: keyframes + react-youtube player sizing */}
       <style>{`
         @keyframes unlockSlideIn {
           0%   { transform: translateY(10px); opacity: 0.3; }
@@ -1596,6 +1591,15 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
           0%   { transform: scale(0.94); opacity: 0.7; }
           60%  { transform: scale(1.03);               }
           100% { transform: scale(1);    opacity: 1;   }
+        }
+        /* Make react-youtube's inner div + iframe fill the 16:9 aspect-ratio wrapper */
+        .hub-yt-player > div,
+        .hub-yt-player > div > iframe {
+          position: absolute !important;
+          inset: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+          border: none !important;
         }
       `}</style>
 
