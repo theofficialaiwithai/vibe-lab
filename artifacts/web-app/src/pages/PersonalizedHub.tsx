@@ -171,7 +171,6 @@ const PHASE_MAP: Record<string, PhaseNum> = {
   "st-bubble": 1,
   "st-softr": 1,
   "st-glide": 1,
-  "st-ui8": 1,
   // Phase 2 — Stack Up
   "yt-claude-code-4hr": 2,
   "yt-neon-postgres": 2,
@@ -184,13 +183,14 @@ const PHASE_MAP: Record<string, PhaseNum> = {
   "st-mobbin": 2,
   // Phase 2 — new tools
   "st-shadcn": 2,
-  "st-spline": 2,
+  "st-ui8": 2,
   "st-v0": 2,
   // Phase 3 — Ship It
   "yt-advanced-claude-code": 3,
   "cs-mcp-assistant": 3,
   "cs-openclaw-assistant": 3,
   "cs-routines-creator": 3,
+  "st-spline": 3,
 };
 
 // ── Placeholder resources for thin phases ─────────────────────────
@@ -1331,7 +1331,19 @@ export default function PersonalizedHub({ shareId }: { shareId: string }) {
   const [loading, setLoading] = useState(true);
   const [assessment, setAssessment] = useState<AssessmentData | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [currentLevel, setCurrentLevel] = useState<number>(1);
+  const [currentLevel, setCurrentLevel] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem("vibelab:result");
+      if (raw) {
+        const saved = JSON.parse(raw) as { confirmedLevel?: Level; level?: Level };
+        const lvl: Level | undefined = saved.confirmedLevel ?? saved.level;
+        if (lvl === "beginner") return 1;
+        if (lvl === "intermediate") return 2;
+        if (lvl === "advanced") return 3;
+      }
+    } catch { /* ignore */ }
+    return 1;
+  });
   const [assignedPhase, setAssignedPhase] = useState<PhaseNum>(1);
   const [unlockedPhase, setUnlockedPhase] = useState<PhaseNum>(1);
   const [completedChallengePhases, setCompletedChallengePhases] = useState<Set<number>>(new Set());

@@ -48,6 +48,7 @@
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "@vercel/node": "^5.8.17",
     "@vitejs/plugin-react": "catalog:",
     "@workspace/api-client-react": "workspace:*",
     "class-variance-authority": "catalog:",
@@ -76,11 +77,13 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.2",
     "@clerk/react": "^6.7.2",
     "@neondatabase/serverless": "^1.1.0",
     "canvas-confetti": "^1.9.4",
     "nanoid": "^5.1.11",
     "react-router-dom": "^7.16.0",
-    "react-youtube": "^10.1.0"
+    "react-youtube": "^10.1.0",
+    "resend": "^6.14.0"
   }
 }

@@ -11,7 +11,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import Layout from "@/components/Layout";
-import { levelLabel, levelTagline } from "@/lib/data/scoring";
+import BuildChallenge from "@/components/BuildChallenge";
+import { levelLabel, levelTagline, isBorderline } from "@/lib/data/scoring";
 import type { Result, CategoryScore, Level } from "@/lib/data/scoring";
 import type { CategoryId } from "@/lib/data/questions";
 import { sql } from "@/lib/db";
@@ -127,6 +128,198 @@ const btnOutline: React.CSSProperties = {
   border: "1px solid var(--border)",
 };
 
+// ── Level confirmation helpers ────────────────────────────────────
+const LEVELS: Level[] = ["beginner", "intermediate", "advanced"];
+
+function shiftLevel(l: Level, dir: "accurate" | "up" | "down"): Level {
+  if (dir === "accurate") return l;
+  const idx = LEVELS.indexOf(l);
+  return dir === "up" ? LEVELS[Math.min(idx + 1, 2)] : LEVELS[Math.max(idx - 1, 0)];
+}
+
+function readConfirmedLevel(fallback: Level): Level {
+  try {
+    const raw = localStorage.getItem("vibelab:result");
+    if (raw) {
+      const saved = JSON.parse(raw) as { confirmedLevel?: Level };
+      if (saved.confirmedLevel) return saved.confirmedLevel;
+    }
+  } catch { /* ignore */ }
+  return fallback;
+}
+
+// ── Level confirmation component ──────────────────────────────────
+function LevelConfirmation({
+  aiLevel,
+  overall: _overall,
+  borderline,
+  onConfirm,
+}: {
+  aiLevel: Level;
+  overall: number;
+  borderline: boolean;
+  onConfirm: (level: Level) => void;
+}) {
+  const [choice, setChoice] = useState<"accurate" | "up" | "down" | null>(null);
+  const [feedback, setFeedback] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [confirmedLevel, setConfirmedLevel] = useState<Level>(aiLevel);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("vibelab:result");
+      if (!raw) return;
+      const saved = JSON.parse(raw) as {
+        confirmedLevel?: Level;
+        aiRecommendedLevel?: Level;
+        userFeedbackText?: string;
+      };
+      if (!saved.confirmedLevel) return;
+      setConfirmedLevel(saved.confirmedLevel);
+      setFeedback(saved.userFeedbackText ?? "");
+      setConfirmed(true);
+      const ai = saved.aiRecommendedLevel ?? aiLevel;
+      const aIdx = LEVELS.indexOf(ai);
+      const cIdx = LEVELS.indexOf(saved.confirmedLevel);
+      setChoice(aIdx === cIdx ? "accurate" : cIdx > aIdx ? "up" : "down");
+    } catch { /* ignore */ }
+  }, [aiLevel]);
+
+  function handleConfirm() {
+    const newLevel = shiftLevel(aiLevel, choice!);
+    setConfirmedLevel(newLevel);
+    setConfirmed(true);
+    setEditing(false);
+    try {
+      const raw = localStorage.getItem("vibelab:result");
+      const saved = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+      localStorage.setItem(
+        "vibelab:result",
+        JSON.stringify({
+          ...saved,
+          confirmedLevel: newLevel,
+          aiRecommendedLevel: aiLevel,
+          userFeedbackText: feedback.trim() || undefined,
+          levelConfirmedAt: new Date().toISOString(),
+        }),
+      );
+    } catch { /* ignore */ }
+    onConfirm(newLevel);
+  }
+
+  const choiceBtn = (value: "accurate" | "up" | "down", label: string) => (
+    <button
+      key={value}
+      onClick={() => setChoice(value)}
+      style={{
+        padding: "9px 16px",
+        borderRadius: 8,
+        border: `1px solid ${choice === value ? "var(--primary)" : "var(--border)"}`,
+        backgroundColor: choice === value ? "rgba(99,102,241,0.15)" : "var(--surface)",
+        color: choice === value ? "var(--primary)" : "var(--foreground)",
+        fontSize: 13,
+        fontWeight: choice === value ? 700 : 400,
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </button>
+  );
+
+  if (confirmed && !editing) {
+    return (
+      <div
+        style={{
+          ...card,
+          marginBottom: 24,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+        }}
+      >
+        <span style={{ fontSize: 14, color: "var(--foreground)" }}>
+          You confirmed: <strong style={{ color: "#fff" }}>{levelLabel(confirmedLevel)}</strong> ✓
+        </span>
+        <button
+          onClick={() => { setEditing(true); }}
+          style={{
+            background: "none",
+            border: "none",
+            color: "var(--primary)",
+            cursor: "pointer",
+            fontSize: 13,
+            fontWeight: 600,
+            padding: 0,
+            flexShrink: 0,
+          }}
+        >
+          Edit
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ ...card, marginBottom: 24 }}>
+      <p style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: borderline ? 6 : 16 }}>
+        We&apos;re recommending{" "}
+        <span style={{ color: "var(--primary)" }}>{levelLabel(aiLevel)}</span>{" "}
+        based on your answers.
+      </p>
+      {borderline && (
+        <p style={{ fontSize: 13, color: "var(--foreground)", opacity: 0.6, marginBottom: 16 }}>
+          Your score was close to the next tier — this one could go either way.
+        </p>
+      )}
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        {choiceBtn("accurate", "✅ That's accurate")}
+        {choiceBtn("up", "⬆️ I'm more advanced than this")}
+        {choiceBtn("down", "⬇️ I'm earlier than this")}
+      </div>
+      <textarea
+        placeholder="Anything feel off? (optional)"
+        value={feedback}
+        onChange={(e) => setFeedback(e.target.value)}
+        rows={2}
+        style={{
+          marginTop: 14,
+          width: "100%",
+          boxSizing: "border-box",
+          backgroundColor: "var(--background)",
+          border: "1px solid var(--border)",
+          borderRadius: 8,
+          color: "var(--foreground)",
+          fontSize: 13,
+          padding: "10px 12px",
+          resize: "vertical",
+          fontFamily: "inherit",
+        }}
+      />
+      <button
+        onClick={handleConfirm}
+        disabled={choice === null}
+        style={{
+          marginTop: 12,
+          padding: "10px 22px",
+          borderRadius: 8,
+          backgroundColor: choice === null ? "rgba(99,102,241,0.25)" : "var(--primary)",
+          color: "#fff",
+          border: "none",
+          fontSize: 14,
+          fontWeight: 700,
+          cursor: choice === null ? "not-allowed" : "pointer",
+          opacity: choice === null ? 0.5 : 1,
+        }}
+      >
+        Confirm
+      </button>
+    </div>
+  );
+}
+
 // ── Category progress row ─────────────────────────────────────────
 function CategoryRow({ cat }: { cat: CategoryScore }) {
   const color = scoreColor(cat.score);
@@ -158,8 +351,13 @@ function ViewResourcesButton() {
 // ── Results body (shared between local and remote) ────────────────
 function ResultsBody({ result, token }: { result: Result; token: string }) {
   const navigate = useNavigate();
-  const { isSignedIn } = useUser();
-  const stack = STACKS[result.level as Level];
+  const { isSignedIn, user } = useUser();
+  const userEmail = user?.emailAddresses[0]?.emailAddress;
+  const userId = user?.id;
+  const [confirmedLevel, setConfirmedLevel] = useState<Level>(() =>
+    readConfirmedLevel(result.level as Level),
+  );
+  const stack = STACKS[confirmedLevel];
   const radarData = result.scores.map((s) => ({ subject: s.short, score: s.score, fullMark: 100 }));
   const isShareable = isShareId(token);
 
@@ -199,6 +397,34 @@ function ResultsBody({ result, token }: { result: Result; token: string }) {
             {levelTagline(result.level as Level)}
           </p>
         </div>
+
+        {/* ── BLOCK 1b: Level Confirmation ── */}
+        <LevelConfirmation
+          aiLevel={result.level as Level}
+          overall={result.overall}
+          borderline={isBorderline(result.overall)}
+          onConfirm={(level) => {
+            setConfirmedLevel(level);
+            // fire-and-forget — never blocks the UI
+            void fetch("/api/send-milestone-email", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                ...(userEmail ? { email: userEmail } : {}),
+                confirmedLevel: level,
+                ...(result.weakest[0] ? { weakestCategory: result.weakest[0] } : {}),
+              }),
+            }).catch(() => { /* silently ignore network errors */ });
+          }}
+        />
+
+        {/* ── BLOCK 1c: Build Challenge ── */}
+        <BuildChallenge
+          confirmedLevel={confirmedLevel}
+          weakestCategory={result.weakest[0]}
+          userEmail={userEmail}
+          userId={userId}
+        />
 
         {/* ── BLOCK 2: Radar Chart ── */}
         <div style={{ ...card, marginBottom: 24 }}>

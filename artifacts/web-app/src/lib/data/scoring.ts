@@ -53,3 +53,8 @@ export function levelLabel(level: Level): string {
   if (level === "intermediate") return "Vibe Builder";
   return "Vibe Architect";
 }
+
+// Returns true when overall is within 5 points of a tier boundary (40 or 75).
+export function isBorderline(overall: number): boolean {
+  return Math.abs(overall - 40) < 5 || Math.abs(overall - 75) < 5;
+}
