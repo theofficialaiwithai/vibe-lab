@@ -90,10 +90,8 @@ Use "needs-human-review" ONLY for custom descriptions that are vague (less than 
         messages: [{ role: "user", content: prompt }],
       });
 
-      const raw =
-        message.content[0]?.type === "text"
-          ? message.content[0].text.trim()
-          : "";
+      const block = message.content[0];
+      const raw = block?.type === "text" ? block.text.trim() : "";
       const parsed = JSON.parse(raw) as {
         feedback: string;
         status: "auto-approved" | "needs-human-review";

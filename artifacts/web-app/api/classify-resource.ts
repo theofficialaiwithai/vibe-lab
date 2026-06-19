@@ -140,8 +140,8 @@ Only include entries in suggestedQuestionEdits if this tool is a strong fit as a
       messages: [{ role: "user", content: prompt }],
     });
 
-    const raw =
-      message.content[0]?.type === "text" ? message.content[0].text.trim() : "";
+    const block = message.content[0];
+    const raw = block?.type === "text" ? block.text.trim() : "";
 
     let parsed: unknown;
     try {
