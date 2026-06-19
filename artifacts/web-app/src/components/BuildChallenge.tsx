@@ -7,7 +7,7 @@ import { getChallengesForLevel } from "@/lib/data/challenges";
 type SubmissionStatus = "auto-approved" | "needs-human-review" | "changes-requested";
 
 type StoredSubmission = {
-  id: number;
+  id: string;
   status: SubmissionStatus;
   feedback: string;
   reviewNote?: string | null;
@@ -109,12 +109,13 @@ export default function BuildChallenge({
         }),
       });
 
-      const data = (await res.json()) as {
-        feedback: string;
-        status: SubmissionStatus;
-        id?: number;
-        error?: string;
-      };
+      let data: { feedback: string; status: SubmissionStatus; id?: string; error?: string };
+      try {
+        data = (await res.json()) as typeof data;
+      } catch {
+        setError(`Request failed (${res.status})`);
+        return;
+      }
 
       if (!res.ok) {
         setError(data.error ?? `Request failed (${res.status})`);
@@ -122,7 +123,7 @@ export default function BuildChallenge({
       }
 
       const newSubmission: StoredSubmission = {
-        id: data.id ?? 0,
+        id: data.id ?? "",
         status: data.status,
         feedback: data.feedback,
       };

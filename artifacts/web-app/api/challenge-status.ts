@@ -28,7 +28,7 @@ export default async function handler(
     const rows = await sql`
       SELECT id, status, ai_feedback, review_note
       FROM user_build_projects
-      WHERE id = ${Number(id)}
+      WHERE id = ${id}
       LIMIT 1
     `;
     if (rows.length === 0) {
@@ -36,7 +36,7 @@ export default async function handler(
       return;
     }
     const row = rows[0] as {
-      id: number;
+      id: string;
       status: string;
       ai_feedback: string | null;
       review_note: string | null;

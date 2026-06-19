@@ -38,7 +38,7 @@ export const VIDEOS: Resource[] = [
   { id: "yt-replit-agent", title: "How to Build Apps with Replit AI Agent", description: "Step-by-step course covering how to set up Replit and build full apps using its AI agent.", url: "https://www.youtube.com/watch?v=DaXQ5L7r7Lg", type: "video", level: "beginner", categories: ["ai-tools", "deployment"], meta: "YouTube · beginner" },
 ];
 
-type StackGroup = "Deployment" | "Authentication" | "Database" | "UX Design" | "Vibe Coding" | "Product Ideas" | "No-Code";
+export type StackGroup = "Deployment" | "Authentication" | "Database" | "UX Design" | "Vibe Coding" | "Product Ideas" | "No-Code";
 
 export const STACK: (Resource & { group: StackGroup })[] = [
   { id: "st-vercel", title: "Vercel", description: "Zero-config deploys for Next.js & friends. The default for most vibe-coded apps.", url: "https://vercel.com", type: "tool", level: "beginner", categories: ["deployment"], group: "Deployment" },

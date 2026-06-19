@@ -42,23 +42,33 @@ export default async function handler(
     return;
   }
 
-  const sql = neon(connStr);
+  // eslint-disable-next-line prefer-const
+  let sql!: ReturnType<typeof neon>;
+  try {
+    sql = neon(connStr);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[submit-challenge] neon() init failed:", err);
+    res.status(500).json({ error: `Database init failed: ${msg}` });
+    return;
+  }
 
   // ── 1. Insert initial row ─────────────────────────────────────────
-  let rowId: number | null = null;
+  let rowId: string | null = null;
   try {
     const rows = await sql`
       INSERT INTO user_build_projects
-        (user_id, email, level, challenge_type, challenge_id, description, status)
+        (user_id, email, level_name, challenge_type, challenge_id, description, status)
       VALUES
         (${userId ?? null}, ${email ?? null}, ${level}, ${challengeType},
          ${challengeId ?? null}, ${description}, 'pending')
       RETURNING id
     `;
-    rowId = (rows[0] as { id: number }).id;
+    rowId = (rows[0] as { id: string }).id;
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
     console.error("[submit-challenge] DB insert failed:", err);
-    res.status(500).json({ error: "Failed to save challenge" });
+    res.status(500).json({ error: `Failed to save challenge: ${msg}` });
     return;
   }
 

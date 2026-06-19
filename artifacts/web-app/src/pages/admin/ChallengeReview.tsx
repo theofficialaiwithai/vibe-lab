@@ -6,7 +6,7 @@ import { sql } from "@/lib/db";
 const ADMIN_EMAIL = "aihemeson@gmail.com";
 
 type Submission = {
-  id: number;
+  id: string;
   user_id: string | null;
   email: string | null;
   level: string;
@@ -203,7 +203,7 @@ export default function ChallengeReview() {
     if (!isAdmin) return;
     setLoading(true);
     sql`
-      SELECT id, user_id, email, level, challenge_type, description,
+      SELECT id, user_id, email, level_name AS level, challenge_type, description,
              ai_feedback, status, review_note, submitted_at
       FROM user_build_projects
       WHERE status IN ('needs-human-review', 'changes-requested')

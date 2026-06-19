@@ -11,7 +11,7 @@ export default async function handler(
   }
 
   const { id, action, note } = req.body as {
-    id?: number;
+    id?: string;
     action?: "approve" | "request-changes";
     note?: string;
   };
