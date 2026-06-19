@@ -1,6 +1,10 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { neon } from "@neondatabase/serverless";
 import Anthropic from "@anthropic-ai/sdk";
+import { Resend } from "resend";
+
+const FROM = "onboarding@resend.dev";
+const INTERNAL_TO = "aihemeson@gmail.com";
 
 const LEVEL_LABELS: Record<string, string> = {
   beginner: "Vibe Starter",
@@ -118,5 +122,34 @@ Use "needs-human-review" ONLY for custom descriptions that are vague (less than 
     }
   }
 
-  res.status(200).json({ feedback, status });
+  // ── 4. Notify admin when flagged for review ───────────────────────
+  if (status === "needs-human-review" && process.env.RESEND_API_KEY && rowId !== null) {
+    try {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      await resend.emails.send({
+        from: FROM,
+        to: INTERNAL_TO,
+        subject: `Vibe Lab build challenge flagged for review (#${rowId})`,
+        text: [
+          `A build challenge was flagged for human review.`,
+          ``,
+          `ID: ${rowId}`,
+          `Level: ${levelLabel}`,
+          `Type: ${challengeType}`,
+          email ? `Submitted by: ${email}` : `Submitted by: anonymous`,
+          ``,
+          `Description:`,
+          description,
+          ``,
+          `AI feedback: ${feedback}`,
+          ``,
+          `Review queue: https://vibelab.dev/admin/challenge-review`,
+        ].join("\n"),
+      });
+    } catch (err) {
+      console.error("[submit-challenge] Failed to send review notification:", err);
+    }
+  }
+
+  res.status(200).json({ feedback, status, ...(rowId !== null ? { id: rowId } : {}) });
 }

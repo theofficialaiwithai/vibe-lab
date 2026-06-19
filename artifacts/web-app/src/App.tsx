@@ -9,6 +9,7 @@ import Results from "@/pages/Results";
 import Personalize from "@/pages/Personalize";
 import Hub from "@/pages/Hub";
 import ResourceIntake from "@/pages/admin/ResourceIntake";
+import ChallengeReview from "@/pages/admin/ChallengeReview";
 
 const clerkPubKey = publishableKeyFromHost(
   window.location.hostname,
@@ -263,6 +264,7 @@ function ClerkProviderWithRoutes() {
           <Route path="/resources" element={<Hub />} />
           <Route path="/hub" element={<Hub />} />
           <Route path="/admin/resource-intake" element={<ResourceIntake />} />
+          <Route path="/admin/challenge-review" element={<ChallengeReview />} />
           <Route path="/sign-in/*" element={<SignInPage />} />
           <Route path="/sign-up/*" element={<SignUpPage />} />
         </Routes>

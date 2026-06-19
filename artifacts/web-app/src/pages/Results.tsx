@@ -16,65 +16,162 @@ import { levelLabel, levelTagline, isBorderline } from "@/lib/data/scoring";
 import type { Result, CategoryScore, Level } from "@/lib/data/scoring";
 import type { CategoryId } from "@/lib/data/questions";
 import { sql } from "@/lib/db";
+import { STACK, VIDEOS } from "@/lib/data/resources";
+import type { Resource } from "@/lib/data/resources";
 
-// ── Stack recommendations ──────────────────────────────────────────
-const STACKS: Record<Level, { name: string; tools: string; reason: string; firstStep: string; link: string }> = {
-  beginner: {
-    name: "Starter Stack",
-    tools: "Replit",
-    reason: "No setup required — build and deploy in one place. Perfect for your first shipped project.",
-    firstStep: "Watch: How to Build Apps with Replit AI Agent",
-    link: "https://www.youtube.com/watch?v=DaXQ5L7r7Lg",
-  },
-  intermediate: {
-    name: "Core Stack",
-    tools: "Vercel + Supabase + Clerk",
-    reason: "You're ready for a real stack with best-in-class tools for each layer.",
-    firstStep: "Watch: Deploy Vibe Coding Projects for Free",
-    link: "https://www.youtube.com/watch?v=85JVKjW-uG0",
-  },
-  advanced: {
-    name: "Power Stack",
-    tools: "Vercel + Neon + Clerk + Claude Code",
-    reason: "The full stack for intentional, high-velocity builders. Pair with Cowork Skills.",
-    firstStep: "Watch: Advanced Claude Code",
-    link: "https://youtu.be/UPtmKh1vMN8",
-  },
+// ── Category → STACK group mapping ───────────────────────────────
+const CAT_TO_GROUPS: Record<CategoryId, string[]> = {
+  "ai-tools":   ["Vibe Coding"],
+  "deployment": ["Deployment", "No-Code"],
+  "auth-data":  ["Authentication", "Database"],
+  "ux-design":  ["UX Design"],
+  "product":    ["Product Ideas", "No-Code"],
 };
 
-// ── Weakest-area recommendations ──────────────────────────────────
-const WEAK_REC: Record<CategoryId, { title: string; action: string; link: string; skill: string }> = {
-  "ai-tools": {
-    title: "AI Coding Tools",
-    action: "Start with the Claude Code 4 Hour Course",
-    link: "https://youtu.be/QoQBzR1NIqI",
-    skill: "Install: code-build-copilot skill",
-  },
-  "deployment": {
-    title: "Deployment & Hosting",
-    action: "Watch: Deploy Vibe Coding Projects for Free",
-    link: "https://www.youtube.com/watch?v=85JVKjW-uG0",
-    skill: "Try: Vercel — connect a GitHub repo",
-  },
-  "auth-data": {
-    title: "Auth & Data",
-    action: "Watch: Supabase Full Course 2025",
-    link: "https://www.youtube.com/watch?v=kyphLGnSz6Q",
-    skill: "Install: mcp-assistant skill",
-  },
-  "ux-design": {
-    title: "UX Design Sourcing",
-    action: "Explore Mobbin + 21st.dev before your next build",
-    link: "https://mobbin.com",
-    skill: "Reference: Dribbble for layout inspiration",
-  },
-  "product": {
-    title: "Product Thinking",
-    action: "Install the PRD Assistant skill",
-    link: "https://github.com/theofficialaiwithai/cowork-skills/tree/main/skills/prd-assistant",
-    skill: "Validate first: browse Ideabrowser",
-  },
+const CAT_LABEL: Record<CategoryId, string> = {
+  "ai-tools":   "AI Coding Tools",
+  "deployment": "Deployment & Hosting",
+  "auth-data":  "Auth & Data",
+  "ux-design":  "UX Design Sourcing",
+  "product":    "Product Thinking",
 };
+
+// ── Resource feedback (vibelab:resource-feedback in localStorage) ─
+type ResourceFeedback = Record<string, "know" | "not-relevant">;
+
+function readFeedback(): ResourceFeedback {
+  try {
+    const raw = localStorage.getItem("vibelab:resource-feedback");
+    return raw ? (JSON.parse(raw) as ResourceFeedback) : {};
+  } catch { return {}; }
+}
+
+function writeFeedback(id: string, value: "know" | "not-relevant"): ResourceFeedback {
+  const next = { ...readFeedback(), [id]: value };
+  try { localStorage.setItem("vibelab:resource-feedback", JSON.stringify(next)); } catch { /* ignore */ }
+  return next;
+}
+
+// ── Stack pick helpers ────────────────────────────────────────────
+const LEVEL_ORDER: Level[] = ["beginner", "intermediate", "advanced"];
+function lvlIdx(l: Level) { return LEVEL_ORDER.indexOf(l); }
+function atOrBelow(rl: Level, ul: Level) { return lvlIdx(rl) <= lvlIdx(ul); }
+function oneTierUp(l: Level): Level { return LEVEL_ORDER[Math.min(lvlIdx(l) + 1, 2)]; }
+
+type StackPick = { tool: (typeof STACK)[number]; isStretch: boolean };
+
+function pickStackTools(
+  effectiveLevel: Level,
+  weakCats: CategoryId[],
+  allCats: CategoryId[],
+  fb: ResourceFeedback,
+): StackPick[] {
+  const usable = (id: string) => fb[id] !== "not-relevant" && fb[id] !== "know";
+  const used = new Set<string>();
+  const picks: StackPick[] = [];
+
+  for (const cat of weakCats.slice(0, 2)) {
+    const groups = CAT_TO_GROUPS[cat] ?? [];
+    STACK
+      .filter(r =>
+        groups.includes(r.group) &&
+        r.categories.includes(cat) &&
+        atOrBelow(r.level, effectiveLevel) &&
+        usable(r.id) && !used.has(r.id)
+      )
+      .slice(0, 2)
+      .forEach(r => { picks.push({ tool: r, isStretch: false }); used.add(r.id); });
+  }
+
+  const stretchLevel = oneTierUp(effectiveLevel);
+  const weakSet = new Set(weakCats);
+  for (const cat of allCats.filter(c => !weakSet.has(c)).slice(0, 3)) {
+    const groups = CAT_TO_GROUPS[cat] ?? [];
+    const candidates = STACK.filter(r =>
+      groups.includes(r.group) &&
+      r.categories.includes(cat) &&
+      atOrBelow(r.level, stretchLevel) &&
+      usable(r.id) && !used.has(r.id)
+    );
+    const pick = candidates.find(r => r.level === stretchLevel) ?? candidates[0];
+    if (pick) { picks.push({ tool: pick, isStretch: true }); used.add(pick.id); }
+  }
+
+  return picks;
+}
+
+function pickOpportunityResources(
+  cat: CategoryId,
+  effectiveLevel: Level,
+  fb: ResourceFeedback,
+): Resource[] {
+  const usable = (id: string) => fb[id] !== "not-relevant" && fb[id] !== "know";
+  const nearLevel = oneTierUp(effectiveLevel);
+  const candidates = ([...VIDEOS, ...STACK] as Resource[]).filter(r =>
+    r.categories.includes(cat) && atOrBelow(r.level, nearLevel) && usable(r.id)
+  );
+  const videos = candidates.filter(r => r.type === "video");
+  const tools = candidates.filter(r => r.type === "tool");
+  if (videos.length > 0 && tools.length > 0) return [videos[0], tools[0]];
+  return candidates.slice(0, 2);
+}
+
+// ── Relevance feedback buttons ────────────────────────────────────
+function FeedbackButtons({
+  resourceId,
+  feedback,
+  onFeedback,
+}: {
+  resourceId: string;
+  feedback: ResourceFeedback;
+  onFeedback: (id: string, value: "know" | "not-relevant") => void;
+}) {
+  const current = feedback[resourceId];
+  const isKnow = current === "know";
+  const isNR = current === "not-relevant";
+  return (
+    <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+      <button
+        onClick={() => onFeedback(resourceId, "know")}
+        style={{
+          padding: "3px 10px", borderRadius: 999, fontFamily: "inherit", fontSize: 11, cursor: "pointer",
+          border: `1px solid ${isKnow ? "rgba(34,197,94,0.4)" : "var(--border)"}`,
+          backgroundColor: isKnow ? "rgba(34,197,94,0.10)" : "transparent",
+          color: isKnow ? "#22c55e" : "var(--foreground)",
+          opacity: isNR ? 0.35 : 1,
+        }}
+      >
+        👍 Already know this
+      </button>
+      <button
+        onClick={() => onFeedback(resourceId, "not-relevant")}
+        style={{
+          padding: "3px 10px", borderRadius: 999, fontFamily: "inherit", fontSize: 11, cursor: "pointer",
+          border: `1px solid ${isNR ? "rgba(239,68,68,0.4)" : "var(--border)"}`,
+          backgroundColor: isNR ? "rgba(239,68,68,0.10)" : "transparent",
+          color: isNR ? "#f87171" : "var(--foreground)",
+          opacity: isKnow ? 0.35 : 1,
+        }}
+      >
+        👎 Not relevant
+      </button>
+    </div>
+  );
+}
+
+// ── Category score overrides ──────────────────────────────────────
+type CategoryOverride = { aiScore: number; adjustedScore: number; adjustedAt: string };
+type CategoryOverrides = Record<string, CategoryOverride>;
+
+function readOverrides(): CategoryOverrides {
+  try {
+    const raw = localStorage.getItem("vibelab:categoryOverrides");
+    return raw ? (JSON.parse(raw) as CategoryOverrides) : {};
+  } catch { return {}; }
+}
+function writeOverrides(v: CategoryOverrides): void {
+  try { localStorage.setItem("vibelab:categoryOverrides", JSON.stringify(v)); } catch { /* ignore */ }
+}
 
 // ── Score colour ──────────────────────────────────────────────────
 function scoreColor(score: number): string {
@@ -320,18 +417,101 @@ function LevelConfirmation({
   );
 }
 
-// ── Category progress row ─────────────────────────────────────────
-function CategoryRow({ cat }: { cat: CategoryScore }) {
-  const color = scoreColor(cat.score);
+// ── Category progress row (supports user override) ────────────────
+function CategoryRow({
+  cat,
+  override,
+  onSave,
+  onReset,
+}: {
+  cat: CategoryScore;
+  override?: CategoryOverride;
+  onSave: (catId: string, adjusted: number) => void;
+  onReset: (catId: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(cat.score);
+
+  const displayScore = override?.adjustedScore ?? cat.score;
+  const color = scoreColor(displayScore);
+
+  const ghostBtn: React.CSSProperties = {
+    background: "none", border: "none", padding: 0,
+    cursor: "pointer", fontSize: 12, fontFamily: "inherit",
+  };
+
+  if (editing) {
+    return (
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, alignItems: "baseline" }}>
+          <span style={{ fontSize: 14, color: "var(--foreground)", fontWeight: 500 }}>{cat.label}</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: scoreColor(draft), fontFamily: "monospace" }}>{draft}%</span>
+        </div>
+        <input
+          type="range" min={0} max={100} value={draft}
+          onChange={(e) => setDraft(Number(e.target.value))}
+          style={{ width: "100%", marginBottom: 10, accentColor: "var(--primary)" }}
+        />
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={() => { onSave(cat.id, draft); setEditing(false); }}
+            style={{
+              padding: "5px 14px", borderRadius: 6, border: "none", fontFamily: "inherit",
+              backgroundColor: "var(--primary)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer",
+            }}
+          >
+            Save
+          </button>
+          <button
+            onClick={() => { setDraft(override?.adjustedScore ?? cat.score); setEditing(false); }}
+            style={{
+              padding: "5px 14px", borderRadius: 6, border: "1px solid var(--border)", fontFamily: "inherit",
+              backgroundColor: "transparent", color: "var(--foreground)", fontSize: 13, cursor: "pointer",
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ marginBottom: 20 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
         <span style={{ fontSize: 14, color: "var(--foreground)", fontWeight: 500 }}>{cat.label}</span>
-        <span style={{ fontSize: 14, fontWeight: 700, color, fontFamily: "monospace" }}>{cat.score}%</span>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+          {override ? (
+            <>
+              <span style={{ fontSize: 14, fontWeight: 700, color, fontFamily: "monospace" }}>
+                Your estimate: {override.adjustedScore}%
+              </span>
+              <span style={{ fontSize: 11, color: "var(--foreground)", opacity: 0.4, fontFamily: "monospace" }}>
+                (AI: {cat.score}%)
+              </span>
+              <button
+                onClick={() => onReset(cat.id)}
+                style={{ ...ghostBtn, color: "var(--foreground)", opacity: 0.5 }}
+              >
+                Reset
+              </button>
+            </>
+          ) : (
+            <span style={{ fontSize: 14, fontWeight: 700, color, fontFamily: "monospace" }}>{cat.score}%</span>
+          )}
+        </div>
       </div>
-      <div style={{ height: 4, backgroundColor: "var(--border)", borderRadius: 2, overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${cat.score}%`, backgroundColor: color, borderRadius: 2 }} />
+      <div style={{ height: 4, backgroundColor: "var(--border)", borderRadius: 2, overflow: "hidden", marginBottom: 6 }}>
+        <div style={{ height: "100%", width: `${displayScore}%`, backgroundColor: color, borderRadius: 2, transition: "width 0.3s" }} />
       </div>
+      {!override && (
+        <button
+          onClick={() => { setDraft(cat.score); setEditing(true); }}
+          style={{ ...ghostBtn, color: "var(--foreground)", opacity: 0.35, fontSize: 11 }}
+        >
+          Doesn't feel right?
+        </button>
+      )}
     </div>
   );
 }
@@ -357,8 +537,36 @@ function ResultsBody({ result, token }: { result: Result; token: string }) {
   const [confirmedLevel, setConfirmedLevel] = useState<Level>(() =>
     readConfirmedLevel(result.level as Level),
   );
-  const stack = STACKS[confirmedLevel];
-  const radarData = result.scores.map((s) => ({ subject: s.short, score: s.score, fullMark: 100 }));
+  const [feedback, setFeedback] = useState<ResourceFeedback>(() => readFeedback());
+  function handleFeedback(id: string, value: "know" | "not-relevant") {
+    setFeedback(writeFeedback(id, value));
+  }
+
+  const [overrides, setOverrides] = useState<CategoryOverrides>(() => readOverrides());
+  function handleOverrideSave(catId: string, adjustedScore: number) {
+    const aiScore = result.scores.find(s => s.id === catId)?.score ?? adjustedScore;
+    const next: CategoryOverrides = { ...overrides, [catId]: { aiScore, adjustedScore, adjustedAt: new Date().toISOString() } };
+    writeOverrides(next);
+    setOverrides(next);
+  }
+  function handleOverrideReset(catId: string) {
+    const next = { ...overrides };
+    delete next[catId];
+    writeOverrides(next);
+    setOverrides(next);
+  }
+
+  const effectiveScores = result.scores.map(s => ({
+    ...s,
+    score: overrides[s.id]?.adjustedScore ?? s.score,
+  }));
+  const effectiveWeakest = [...effectiveScores]
+    .sort((a, b) => a.score - b.score)
+    .slice(0, 2)
+    .map(s => s.id as CategoryId);
+
+  const allCatIds = result.scores.map(s => s.id as CategoryId);
+  const radarData = effectiveScores.map((s) => ({ subject: s.short, score: s.score, fullMark: 100 }));
   const isShareable = isShareId(token);
 
   // Check whether user already has a personalization profile
@@ -449,75 +657,141 @@ function ResultsBody({ result, token }: { result: Result; token: string }) {
         {/* ── BLOCK 3: Category Scores ── */}
         <div style={{ ...card, marginBottom: 24 }}>
           {result.scores.map((cat) => (
-            <CategoryRow key={cat.id} cat={cat} />
+            <CategoryRow
+              key={cat.id}
+              cat={cat}
+              override={overrides[cat.id]}
+              onSave={handleOverrideSave}
+              onReset={handleOverrideReset}
+            />
           ))}
         </div>
 
         {/* ── BLOCK 4: Recommended Stack ── */}
-        <div style={{ marginBottom: 24 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#ffffff", marginBottom: 16 }}>
-            Your Recommended Stack
-          </h2>
-          <div
-            style={{
-              backgroundColor: "var(--surface)",
-              border: "1px solid rgba(99,102,241,0.30)",
-              borderRadius: 16,
-              padding: 24,
-            }}
-          >
-            <p style={{ fontFamily: "monospace", fontSize: 11, color: "var(--foreground)", opacity: 0.5, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
-              {stack.name}
-            </p>
-            <p style={{ fontSize: 22, fontWeight: 700, color: "#ffffff", marginBottom: 12 }}>{stack.tools}</p>
-            <p style={{ color: "var(--foreground)", opacity: 0.65, fontSize: 15, lineHeight: 1.6, marginBottom: 16 }}>
-              {stack.reason}
-            </p>
-            <a
-              href={stack.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: "var(--primary)", fontSize: 14, fontWeight: 600, textDecoration: "none" }}
-            >
-              ▶ {stack.firstStep}
-            </a>
-          </div>
-        </div>
-
-        {/* ── BLOCK 5: Weakest Area Callouts ── */}
-        <div style={{ marginBottom: 56 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#ffffff", marginBottom: 16 }}>
-            Your Biggest Opportunities
-          </h2>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-              gap: 16,
-            }}
-          >
-            {result.weakest.map((catId) => {
-              const rec = WEAK_REC[catId as CategoryId];
-              if (!rec) return null;
-              return (
-                <div key={catId} style={{ ...card, borderRadius: 12 }}>
-                  <p style={{ fontWeight: 700, fontSize: 15, color: "#ffffff", marginBottom: 12 }}>{rec.title}</p>
-                  <a
-                    href={rec.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ color: "var(--primary)", fontSize: 14, fontWeight: 500, textDecoration: "none", display: "block", marginBottom: 10 }}
-                  >
-                    → {rec.action}
-                  </a>
-                  <p style={{ fontSize: 12, color: "var(--foreground)", opacity: 0.45, fontFamily: "monospace" }}>
-                    {rec.skill}
-                  </p>
+        {(() => {
+          const stackPicks = pickStackTools(confirmedLevel, effectiveWeakest, allCatIds, feedback);
+          return (
+            <div style={{ marginBottom: 24 }}>
+              <h2 style={{ fontSize: 22, fontWeight: 700, color: "#ffffff", marginBottom: 16 }}>
+                Your Recommended Stack
+              </h2>
+              {stackPicks.length === 0 ? (
+                <div style={{ ...card, color: "var(--foreground)", opacity: 0.55, fontSize: 14 }}>
+                  You've hidden all current suggestions — open the Hub for more resources.
                 </div>
-              );
-            })}
-          </div>
-        </div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+                  {stackPicks.map(({ tool, isStretch }) => (
+                    <div
+                      key={tool.id}
+                      style={{
+                        backgroundColor: "var(--surface)",
+                        border: `1px solid ${isStretch ? "rgba(139,92,246,0.30)" : "rgba(99,102,241,0.30)"}`,
+                        borderRadius: 12,
+                        padding: 16,
+                        display: "flex",
+                        flexDirection: "column",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
+                        <a
+                          href={tool.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ fontSize: 14, fontWeight: 700, color: "#fff", textDecoration: "none" }}
+                        >
+                          {tool.title} ↗
+                        </a>
+                        <span style={{
+                          flexShrink: 0,
+                          fontSize: 10,
+                          fontFamily: "monospace",
+                          fontWeight: 700,
+                          padding: "2px 8px",
+                          borderRadius: 999,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.06em",
+                          backgroundColor: isStretch ? "rgba(139,92,246,0.14)" : "rgba(99,102,241,0.12)",
+                          color: isStretch ? "#a78bfa" : "var(--primary)",
+                          border: `1px solid ${isStretch ? "rgba(139,92,246,0.28)" : "rgba(99,102,241,0.25)"}`,
+                        }}>
+                          {isStretch ? "Stretch" : tool.level}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 12, color: "var(--foreground)", opacity: 0.6, lineHeight: 1.55, margin: 0, flex: 1 }}>
+                        {tool.description}
+                      </p>
+                      <FeedbackButtons resourceId={tool.id} feedback={feedback} onFeedback={handleFeedback} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* ── BLOCK 5: Biggest Opportunities ── */}
+        {(() => {
+          const typeIcon = (type: string) => type === "video" ? "▶" : "🔧";
+          const weakCats = effectiveWeakest;
+          const sections = weakCats.slice(0, 2).map(cat => ({
+            cat,
+            label: CAT_LABEL[cat] ?? cat,
+            resources: pickOpportunityResources(cat, confirmedLevel, feedback),
+          }));
+          return (
+            <div style={{ marginBottom: 56 }}>
+              <h2 style={{ fontSize: 22, fontWeight: 700, color: "#ffffff", marginBottom: 16 }}>
+                Your Biggest Opportunities
+              </h2>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
+                {sections.map(({ cat, label, resources }) => (
+                  <div key={cat} style={{ ...card, borderRadius: 12 }}>
+                    <p style={{ fontWeight: 700, fontSize: 15, color: "#ffffff", marginBottom: 14 }}>{label}</p>
+                    {resources.length === 0 ? (
+                      <p style={{ fontSize: 13, color: "var(--foreground)", opacity: 0.45, margin: 0 }}>
+                        No suggestions remaining — open the Hub for more.
+                      </p>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                        {resources.map((r, i) => (
+                          <div
+                            key={r.id}
+                            style={{
+                              paddingBottom: i < resources.length - 1 ? 14 : 0,
+                              borderBottom: i < resources.length - 1 ? "1px solid var(--border)" : "none",
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
+                              <span style={{ fontSize: 11, opacity: 0.4 }}>{typeIcon(r.type)}</span>
+                              <a
+                                href={r.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: "var(--primary)", fontSize: 13, fontWeight: 600, textDecoration: "none" }}
+                              >
+                                {r.title} ↗
+                              </a>
+                              {r.meta && (
+                                <span style={{ fontSize: 10, color: "var(--foreground)", opacity: 0.35, fontFamily: "monospace" }}>
+                                  {r.meta}
+                                </span>
+                              )}
+                            </div>
+                            <p style={{ fontSize: 12, color: "var(--foreground)", opacity: 0.6, lineHeight: 1.5, margin: 0 }}>
+                              {r.description}
+                            </p>
+                            <FeedbackButtons resourceId={r.id} feedback={feedback} onFeedback={handleFeedback} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── BLOCK 6: Personalized Hub CTA ── */}
         <div
