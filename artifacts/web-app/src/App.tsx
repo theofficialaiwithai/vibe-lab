@@ -65,6 +65,8 @@ const sharedElements = {
   identityPreviewEditButton: { color: "#6366f1" },
   formFieldSuccessText: { color: "#22c55e" },
   alertText: { color: "#f0f0f5" },
+  alternativeMethodsBlockButton: { color: "#f0f0f5" },
+  alternativeMethodsBlockButtonText: { color: "#f0f0f5" },
   socialButtonsBlockButton: {},
   formButtonPrimary: {},
   formFieldInput: {},
