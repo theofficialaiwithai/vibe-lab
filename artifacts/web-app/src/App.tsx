@@ -91,8 +91,8 @@ const clerkModalAppearance = {
   variables: sharedVariables,
   elements: {
     ...sharedElements,
-    cardBox: "rounded-2xl w-[440px] max-w-full overflow-hidden",
-    card: "!shadow-none !border-0 !bg-transparent !rounded-none",
+    cardBox: "rounded-2xl w-[440px] max-w-full overflow-hidden !bg-[#13131a] !border !border-white/[0.09] !shadow-[0_8px_40px_rgba(0,0,0,0.5)]",
+    card: "!shadow-none !border-0 !rounded-none",
     footer: "!shadow-none !border-0 !bg-transparent !rounded-none",
     headerTitle: { color: "#ffffff" },
     headerSubtitle: { color: "rgba(240,240,245,0.55)" },
