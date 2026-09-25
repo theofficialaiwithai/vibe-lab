@@ -64,7 +64,7 @@ export default async function handler(
          ${challengeId ?? null}, ${description}, 'pending')
       RETURNING id
     `;
-    rowId = (rows[0] as { id: string }).id;
+    rowId = ((rows as { id: string }[])[0]).id;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[submit-challenge] DB insert failed:", err);

@@ -25,22 +25,18 @@ export default async function handler(
   const sql = neon(connStr);
 
   try {
-    const rows = await sql`
+    const rawRows = await sql`
       SELECT id, status, ai_feedback, review_note
       FROM user_build_projects
       WHERE id = ${id}
       LIMIT 1
     `;
+    const rows = rawRows as { id: string; status: string; ai_feedback: string | null; review_note: string | null }[];
     if (rows.length === 0) {
       res.status(404).json({ error: "Not found" });
       return;
     }
-    const row = rows[0] as {
-      id: string;
-      status: string;
-      ai_feedback: string | null;
-      review_note: string | null;
-    };
+    const row = rows[0];
     res.status(200).json({
       id: row.id,
       status: row.status,
